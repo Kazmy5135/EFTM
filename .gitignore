@@ -37,5 +37,13 @@
 .DS_Store
 Thumbs.db
 
+# H5 dependencies, build output, and test artifacts
+node_modules/
+dist/
+coverage/
+.vite/
+playwright-report/
+test-results/
+
 # Local image delivery folder used by Codex chat
 codex-chat-images/

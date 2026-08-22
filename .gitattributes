@@ -1,10 +1,18 @@
 * text=auto
 
+.gitattributes text eol=lf
+.gitignore text eol=lf
 *.cs text eol=lf
 *.asmdef text eol=lf
 *.json text eol=lf
 *.md text eol=lf
 *.meta text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
 *.unity text eol=lf merge=unityyamlmerge
 *.prefab text eol=lf merge=unityyamlmerge
 *.asset text eol=lf merge=unityyamlmerge

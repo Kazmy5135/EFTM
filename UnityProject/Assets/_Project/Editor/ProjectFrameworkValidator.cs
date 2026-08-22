@@ -9,15 +9,14 @@ namespace EFTM.Editor
     {
         private const string ExpectedEditorVersion = "2022.3.62f2";
 
-        private static readonly string[] RequiredPaths =
+        private static readonly string[] RequiredProjectPaths =
         {
             "Assets/_Project/Runtime/EFTM.Runtime.asmdef",
             "Assets/_Project/Editor/EFTM.Editor.asmdef",
             "Assets/_Project/Tests/EditMode/EFTM.Tests.EditMode.asmdef",
             "Assets/_Project/Scenes/Bootstrap.unity",
             "Packages/manifest.json",
-            "ProjectSettings/ProjectVersion.txt",
-            "Docs/README.md"
+            "ProjectSettings/ProjectVersion.txt"
         };
 
         [MenuItem("Tools/EFTM/Validate Project Framework")]
@@ -32,13 +31,22 @@ namespace EFTM.Editor
 
             var failures = new List<string>();
 
-            foreach (var relativePath in RequiredPaths)
+            foreach (var relativePath in RequiredProjectPaths)
             {
                 var fullPath = Path.Combine(projectRoot, relativePath);
                 if (!File.Exists(fullPath))
                 {
                     failures.Add($"Missing required file: {relativePath}");
                 }
+            }
+
+            var repositoryRoot = Directory.GetParent(projectRoot)?.FullName;
+            var docsEntryPath = string.IsNullOrEmpty(repositoryRoot)
+                ? null
+                : Path.Combine(repositoryRoot, "Docs", "README.md");
+            if (string.IsNullOrEmpty(docsEntryPath) || !File.Exists(docsEntryPath))
+            {
+                failures.Add("Missing repository documentation entry: Docs/README.md");
             }
 
             if (Application.unityVersion != ExpectedEditorVersion)

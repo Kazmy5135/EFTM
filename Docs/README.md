@@ -39,3 +39,9 @@
 ```
 
 开始工作时先阅读 [DocumentationRules.md](00_Project/DocumentationRules.md) 和 [ProjectWorkflow.md](00_Project/ProjectWorkflow.md)。
+
+## Agent 路由
+
+仓库按策划设计、可选 H5 原型和 Unity 正式开发三个角色协作。角色职责与交接格式见 [Agent 路由与交接](00_Project/Agents/README.md)。
+
+H5 原型不是固定工作流步骤；只有设计者明确提出需要验证体感、交互或可用性时才进入 H5 分支。
