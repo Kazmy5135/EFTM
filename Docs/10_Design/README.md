@@ -1,6 +1,11 @@
 # 设计基线
 
-本目录保存当前有效的产品与系统设计规格；当前尚未建立任何具体设计模块。
+本目录保存当前产品与系统设计规格。
+
+## 导航
+
+- [EFTM 产品定义](ProductDefinition.md)
+- [核心战斗设计](CoreCombatDesign.md)
 
 - 新规格从 `_templates/SystemDesign.md` 复制，状态从 `draft` 开始。
 - 重要设计取舍记录在 `Decisions`。

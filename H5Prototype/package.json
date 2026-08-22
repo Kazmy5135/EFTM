@@ -1,0 +1,14 @@
+{
+  "name": "eftm-h5-combat-prototype",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Experimental portrait combat interaction prototype for EFTM.",
+  "scripts": {
+    "serve": "node server.mjs",
+    "test": "node --test tests/*.test.js",
+    "check": "node --check src/combat-model.js && node --check src/game.js && node --check server.mjs && node --test tests/*.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

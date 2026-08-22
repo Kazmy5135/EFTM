@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1215">
+  <title>EFTM · 单枪线战斗原型</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main id="app" class="app" aria-label="EFTM 单枪线战斗原型">
+    <div class="grain" aria-hidden="true"></div>
+    <div id="emptyFlash" class="empty-flash" aria-hidden="true"></div>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">H5-COMBAT-001</p>
+        <h1>工业通道 · 接敌</h1>
+      </div>
+      <button id="resetButton" class="reset-button" type="button">重置</button>
+    </header>
+
+    <section class="status-ribbon" aria-live="polite">
+      <span class="status-dot"></span>
+      <span id="roundStatus">双方均在掩体内</span>
+    </section>
+
+    <section id="battlefield" class="battlefield">
+      <div class="depth-grid" aria-hidden="true"></div>
+      <div class="single-line" aria-hidden="true"><span>唯一枪线</span></div>
+
+      <div class="actor-label enemy-label">
+        <div><strong>BOT · PMC</strong><span id="enemyStateText">掩体内</span></div>
+        <div class="health-track"><i id="enemyHealth"></i></div>
+      </div>
+
+      <div id="enemyActor" class="actor enemy" aria-label="敌方 PMC">
+        <div class="shadow"></div>
+        <div class="soldier">
+          <div class="head"><i></i></div><div class="torso"><i class="rig"></i></div>
+          <div class="arm arm-left"></div><div class="arm arm-right"></div>
+          <div class="weapon"><i></i></div>
+        </div>
+        <div class="muzzle"></div>
+      </div>
+      <div class="cover enemy-cover"><i></i><i></i><i></i><span>R-17</span></div>
+
+      <div id="tracer" class="tracer" aria-hidden="true"></div>
+      <div id="impact" class="impact" aria-hidden="true"></div>
+
+      <div id="playerActor" class="actor player" aria-label="玩家 PMC">
+        <div class="shadow"></div>
+        <div class="soldier">
+          <div class="head"><i></i></div><div class="torso"><i class="rig"></i></div>
+          <div class="backpack"></div><div class="arm arm-left"></div><div class="arm arm-right"></div>
+          <div class="weapon"><i></i></div>
+        </div>
+        <div class="muzzle"></div>
+      </div>
+      <div class="cover player-cover"><i></i><i></i><i></i><span>K-04</span></div>
+
+      <div class="actor-label player-label">
+        <div><strong>YOU · PMC</strong><span id="playerStateText">掩体内 · 安全</span></div>
+        <div class="health-track"><i id="playerHealth"></i></div>
+      </div>
+
+      <div id="damageVignette" class="damage-vignette" aria-hidden="true"></div>
+      <div id="combatTextLayer" class="combat-text-layer" aria-hidden="true"></div>
+      <div id="resultPanel" class="result-panel" hidden>
+        <p id="resultEyebrow">交战结束</p><h2 id="resultTitle">目标已失去战斗力</h2>
+        <button id="restartButton" type="button">再次验证</button>
+      </div>
+    </section>
+
+    <section class="combat-console">
+      <div id="emptyWarning" class="empty-warning" role="alert" aria-live="assertive" aria-atomic="true" hidden>
+        <span class="empty-warning-mark" aria-hidden="true">!</span>
+        <span class="empty-warning-copy">
+          <strong>弹匣已空</strong>
+          <small id="emptyWarningHint">松开探身键 · 立即回掩体</small>
+        </span>
+        <span class="empty-warning-code" aria-hidden="true">NO AMMO</span>
+      </div>
+
+      <div class="combat-info">
+        <div class="aim-readout">
+          <div><span>暴露命中概率</span><strong id="aimPercent">安全</strong></div>
+          <div class="aim-track"><i id="aimFill"></i></div>
+        </div>
+        <div id="ammoReadout" class="ammo-readout">
+          <span>弹匣</span>
+          <div><strong id="ammoCount">15</strong><small>/15</small></div>
+          <em id="ammoStatus">就绪</em>
+          <div class="reload-track"><i id="reloadFill"></i></div>
+        </div>
+      </div>
+
+      <div class="action-row">
+        <div class="action-placeholder" aria-hidden="true"></div>
+
+        <button id="holdControl" class="hold-control" type="button" aria-describedby="controlHint">
+          <span class="finger-mark" aria-hidden="true"><i></i></span>
+          <span class="control-copy">
+            <strong id="controlTitle">按住 · 探身</strong><small id="controlHint">松开回掩体</small>
+          </span>
+          <span class="hold-ring" aria-hidden="true"></span>
+        </button>
+
+        <button id="reloadControl" class="reload-control" type="button" aria-describedby="reloadControlHint">
+          <span class="reload-control-icon" aria-hidden="true">↻</span>
+          <span class="reload-control-copy">
+            <strong id="reloadControlTitle">弹匣已满</strong>
+            <small id="reloadControlHint">15 / 15</small>
+          </span>
+          <span id="reloadProgressFill" class="reload-progress-fill" aria-hidden="true"></span>
+        </button>
+      </div>
+
+      <div class="feedback-row">
+        <span id="safetyBadge" class="safety-badge safe">掩体保护</span><span id="combatFeed">等待交战</span>
+      </div>
+    </section>
+  </main>
+
+  <script src="src/combat-model.js"></script>
+  <script src="src/game.js"></script>
+</body>
+</html>
