@@ -1,12 +1,20 @@
 {
-  "name": "eftm-h5-combat-prototype",
-  "version": "0.1.0",
+  "name": "eftm-h5-peek-camera-prototype",
+  "version": "0.2.0",
   "private": true,
-  "description": "Experimental portrait combat interaction prototype for EFTM.",
+  "type": "module",
+  "description": "Experimental portrait 3D camera peek prototype for EFTM.",
   "scripts": {
-    "serve": "node server.mjs",
+    "build": "esbuild src/peek-scene.js --bundle --minify --format=iife --platform=browser --target=es2020 --outfile=peek-app.js",
+    "serve": "npm run build && node server.mjs",
     "test": "node --test tests/*.test.js",
-    "check": "node --check src/combat-model.js && node --check src/game.js && node --check server.mjs && node --test tests/*.test.js"
+    "check": "npm run build && node --check src/peek-state.js && node --check src/peek-scene.js && node --check server.mjs && node --test tests/*.test.js"
+  },
+  "dependencies": {
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.9"
   },
   "engines": {
     "node": ">=18"

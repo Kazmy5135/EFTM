@@ -3,127 +3,57 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#0b1215">
-  <title>EFTM · 单枪线战斗原型</title>
+  <meta name="theme-color" content="#080d0e">
+  <title>EFTM · 3D 摄像机 Peek 原型</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <main id="app" class="app" aria-label="EFTM 单枪线战斗原型">
+  <main id="app" class="app" aria-label="EFTM 3D 摄像机 Peek 原型">
+    <canvas id="sceneCanvas" aria-label="3D 工业通道"></canvas>
     <div class="grain" aria-hidden="true"></div>
-    <div id="emptyFlash" class="empty-flash" aria-hidden="true"></div>
-    <header class="topbar">
+    <div class="edge-shadow" aria-hidden="true"></div>
+
+    <header class="top-hud">
       <div>
-        <p class="eyebrow">H5-COMBAT-001</p>
-        <h1>工业通道 · 接敌</h1>
+        <p>H5-PEEK-CAMERA-001</p>
+        <h1>通道观察位</h1>
       </div>
-      <button id="resetButton" class="reset-button" type="button">重置</button>
+      <span class="prototype-badge">视角验证</span>
     </header>
 
-    <section class="status-ribbon" aria-live="polite">
-      <span class="status-dot"></span>
-      <span id="roundStatus">双方均在掩体内</span>
-    </section>
-
-    <section id="battlefield" class="battlefield" aria-label="战斗手势区域">
-      <div class="depth-grid" aria-hidden="true"></div>
-      <div class="corridor-end" aria-hidden="true"><i></i><i></i><span>SECTOR R-17 · 通道尽头</span></div>
-      <div class="single-line" aria-hidden="true"><span>唯一枪线</span></div>
-
-      <div id="enemyLabel" class="actor-label enemy-label concealed">
-        <div><strong>BOT · PMC</strong><span id="enemyStateText">目标丢失</span></div>
-        <div class="health-track"><i id="enemyHealth"></i></div>
-      </div>
-
-      <div id="enemyActor" class="actor enemy" aria-label="敌方 PMC">
-        <div class="shadow"></div>
-        <div class="soldier">
-          <div class="head"><i></i></div><div class="torso"><i class="rig"></i></div>
-          <div class="arm arm-left"></div><div class="arm arm-right"></div>
-          <div class="weapon"><i></i></div>
-        </div>
-        <div class="muzzle"></div>
-      </div>
-      <div class="cover enemy-cover"><i></i><i></i><i></i><span>R-17</span></div>
-
-      <div id="tracer" class="tracer" aria-hidden="true"></div>
-      <div id="impact" class="impact" aria-hidden="true"></div>
-
-      <div id="playerActor" class="actor player" aria-label="玩家 PMC">
-        <div class="shadow"></div>
-        <div class="soldier">
-          <div class="head"><i></i></div><div class="torso"><i class="rig"></i></div>
-          <div class="backpack"></div><div class="arm arm-left"></div><div class="arm arm-right"></div>
-          <div class="weapon"><i></i></div>
-        </div>
-        <div class="muzzle"></div>
-      </div>
-      <div id="playerCoverLeft" class="cover player-cover left active"><i></i><i></i><i></i><span>L-04</span></div>
-      <div id="playerCoverRight" class="cover player-cover right"><i></i><i></i><i></i><span>R-04</span></div>
-
-      <div class="actor-label player-label">
-        <div><strong>YOU · PMC</strong><span id="playerStateText">掩体内 · 安全</span></div>
-        <div class="health-track"><i id="playerHealth"></i></div>
-      </div>
-
-      <div id="gestureGuide" class="gesture-guide" aria-live="polite">
-        <strong id="gestureGuideTitle">滑动操作</strong>
-        <small id="gestureGuideHint">左右切换掩体 · 上滑架枪</small>
-      </div>
-
-      <button id="fireControl" class="fire-control" type="button" hidden>
-        <span class="fire-control-icon" aria-hidden="true">●</span>
-        <span><strong id="fireControlTitle">按住开火</strong><small id="fireControlHint">松开停止射击</small></span>
-      </button>
-
-      <div id="damageVignette" class="damage-vignette" aria-hidden="true"></div>
-      <div id="combatTextLayer" class="combat-text-layer" aria-hidden="true"></div>
-      <div id="resultPanel" class="result-panel" hidden>
-        <p id="resultEyebrow">交战结束</p><h2 id="resultTitle">目标已失去战斗力</h2>
-        <button id="restartButton" type="button">再次验证</button>
+    <section class="state-panel" aria-live="polite">
+      <span class="state-dot" aria-hidden="true"></span>
+      <div>
+        <small>CAMERA STATE</small>
+        <strong id="stateLabel">掩体后 · 通道不可见</strong>
       </div>
     </section>
 
-    <section class="combat-console">
-      <div id="emptyWarning" class="empty-warning" role="alert" aria-live="assertive" aria-atomic="true" hidden>
-        <span class="empty-warning-mark" aria-hidden="true">!</span>
-        <span class="empty-warning-copy">
-          <strong>弹匣已空</strong>
-          <small id="emptyWarningHint">右下换弹 · 或下滑回掩体</small>
-        </span>
-        <span class="empty-warning-code" aria-hidden="true">NO AMMO</span>
-      </div>
+    <div id="reticle" class="reticle" aria-hidden="true"><i></i><span></span></div>
 
-      <div class="combat-info">
-        <div class="aim-readout">
-          <div><span>暴露命中概率</span><strong id="aimPercent">安全</strong></div>
-          <div class="aim-track"><i id="aimFill"></i></div>
-        </div>
-      </div>
-
-      <div class="ammo-dock">
-        <div id="ammoReadout" class="ammo-readout">
-          <span>弹匣</span>
-          <div><strong id="ammoCount">15</strong><small>/15</small></div>
-          <em id="ammoStatus">就绪</em>
-          <div class="reload-track"><i id="reloadFill"></i></div>
-        </div>
-        <button id="reloadControl" class="reload-control" type="button" aria-describedby="reloadControlHint">
-          <span class="reload-control-icon" aria-hidden="true">↻</span>
-          <span class="reload-control-copy">
-            <strong id="reloadControlTitle">换弹</strong>
-            <small id="reloadControlHint">弹匣已满</small>
-          </span>
-          <span id="reloadProgressFill" class="reload-progress-fill" aria-hidden="true"></span>
-        </button>
-      </div>
-
-      <div class="feedback-row">
-        <span id="safetyBadge" class="safety-badge safe">掩体保护</span><span id="combatFeed">等待交战</span>
+    <section class="instruction-card">
+      <span class="lean-icon" aria-hidden="true"><i></i></span>
+      <div>
+        <strong>按住探头观察</strong>
+        <small>摄像机横移并侧倾 · 松开立即缩回</small>
       </div>
     </section>
+
+    <div class="peek-progress" aria-hidden="true"><i id="peekProgressFill"></i></div>
+
+    <button id="peekControl" class="peek-control" type="button" aria-pressed="false">
+      <span class="button-rings" aria-hidden="true"><i></i><i></i></span>
+      <span class="button-copy"><strong>PEEK</strong><small>按住不放</small></span>
+    </button>
+
+    <p class="experiment-note">仅验证摄像机视角 · 无敌人 / 无开火 / 无换弹</p>
+
+    <div id="unsupported" class="unsupported" role="alert" hidden>
+      <strong>设备无法启动 3D 场景</strong>
+      <span id="unsupportedDetail">请确认浏览器已开启 WebGL。</span>
+    </div>
   </main>
 
-  <script src="src/combat-model.js"></script>
-  <script src="src/game.js"></script>
+  <script src="peek-app.js"></script>
 </body>
 </html>

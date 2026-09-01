@@ -19,9 +19,14 @@ createServer(async (request, response) => {
   try {
     const requestUrl = new URL(request.url || "/", "http://127.0.0.1");
     const requestedPath = decodeURIComponent(requestUrl.pathname === "/" ? "/index.html" : requestUrl.pathname);
+    if (requestedPath.startsWith("/node_modules/")) {
+      response.writeHead(403).end("Forbidden");
+      return;
+    }
     const absolutePath = resolve(root, `.${requestedPath}`);
 
-    if (absolutePath !== root && !absolutePath.startsWith(`${root}${sep}`)) {
+    const isPrototypeFile = absolutePath === root || absolutePath.startsWith(`${root}${sep}`);
+    if (!isPrototypeFile) {
       response.writeHead(403).end("Forbidden");
       return;
     }
