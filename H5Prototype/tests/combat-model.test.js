@@ -88,12 +88,15 @@ test("player and enemy use identical combat parameters", () => {
   assert.equal(model.hitChanceForExposure(0.5), 0.3);
 });
 
-test("releasing begins a vulnerable retreat before cover protection", () => {
+test("an explicit retreat begins a vulnerable return before cover protection", () => {
   const model = new CombatModel({ random: () => 0 });
-  model.setPeekIntent("player", true);
+  assert.equal(model.startAim("player"), true);
   advance(model, 280);
   assert.ok(model.getSnapshot().player.exposure > 0.63);
-  model.setPeekIntent("player", false);
+  assert.equal(model.startRetreat("player"), false, "aim establishment cannot be cancelled early");
+  advance(model, 40);
+  assert.equal(model.getSnapshot().player.state, STATES.HOLDING);
+  assert.equal(model.startRetreat("player"), true);
   advance(model, 20);
   const retreating = model.getSnapshot().player;
   assert.equal(retreating.state, STATES.RETREATING);
@@ -102,12 +105,12 @@ test("releasing begins a vulnerable retreat before cover protection", () => {
   assert.equal(model.getSnapshot().player.state, STATES.HIDDEN);
 });
 
-test("five press and release loops return to a clean hidden state", () => {
+test("five aim and retreat loops return to a clean hidden state", () => {
   const model = new CombatModel({ random: () => 1 });
   for (let loop = 0; loop < 5; loop += 1) {
-    model.setPeekIntent("player", true);
-    advance(model, 180);
-    model.setPeekIntent("player", false);
+    assert.equal(model.startAim("player"), true);
+    advance(model, 320);
+    assert.equal(model.startRetreat("player"), true);
     advance(model, 360);
   }
   const player = model.getSnapshot().player;
@@ -125,14 +128,82 @@ test("a fully hidden target is protected from a pre-aimed opponent", () => {
   assert.equal(model.getSnapshot().player.hp, 100);
 });
 
-test("an empty magazine holds the line until release, then reloads after a single trigger", () => {
+test("player aim latches and holding fire produces continuous shots until release", () => {
+  const model = new CombatModel({ random: () => 0 });
+  assert.equal(model.startAim("player"), true);
+  advance(model, 320);
+  let player = model.getSnapshot().player;
+  assert.equal(player.state, STATES.HOLDING);
+  assert.equal(player.intentPeek, true);
+  advance(model, 1000);
+  assert.equal(model.getSnapshot().player.shots, 0, "the player never fires automatically");
+
+  assert.equal(model.setFireHeld("player", true), true);
+  const events = advance(model, 340);
+  const shots = events.filter((event) => event.type === "shot" && event.shooterId === "player");
+  assert.ok(shots.length >= 3, "holding the fire control must produce repeated shots");
+  assert.ok(shots.every((shot) => shot.hitChance === 0), "firing at a hidden enemy must miss");
+  const shotsBeforeRelease = model.getSnapshot().player.shots;
+  assert.equal(model.setFireHeld("player", false), true);
+  advance(model, 300);
+  assert.equal(model.getSnapshot().player.shots, shotsBeforeRelease, "releasing fire stops the burst");
+});
+
+test("reload can start while aimed, remains exposed, and returns to aimed state", () => {
+  const model = new CombatModel({ config: { reloadMs: 2000 } });
+  model.startAim("player");
+  advance(model, 320);
+  model.actors.player.ammo = 6;
+
+  assert.equal(model.startReload("player"), true);
+  let player = model.getSnapshot().player;
+  assert.equal(player.state, STATES.RELOADING);
+  assert.equal(player.reloadReturnState, STATES.HOLDING);
+  assert.equal(player.exposure, 1);
+  assert.equal(model.isTargetable(model.actors.player), true);
+
+  advance(model, 2020);
+  player = model.getSnapshot().player;
+  assert.equal(player.state, STATES.HOLDING);
+  assert.equal(player.exposure, 1);
+  assert.equal(player.ammo, 15);
+});
+
+test("switching cover crosses the lane at a fixed twenty percent hit chance", () => {
+  const model = new CombatModel({ random: () => 0, config: { baseDamage: 0 } });
+  model.setPeekIntent("enemy", true);
+  advance(model, 1000);
+  assert.equal(model.startCoverSwitch("player"), true);
+  assert.equal(model.getSnapshot().player.state, STATES.SWITCHING);
+
+  const events = advance(model, 20);
+  const shot = events.find((event) => event.type === "shot" && event.shooterId === "enemy");
+  assert.ok(shot);
+  assert.equal(shot.hitChance, 0.2);
+  assert.equal(model.hitChanceForTarget(model.actors.player), 0.2);
+
+  advance(model, 600);
+  let player = model.getSnapshot().player;
+  assert.equal(player.state, STATES.HIDDEN);
+  assert.equal(player.coverSide, "right");
+  assert.equal(player.exposure, 0);
+
+  assert.equal(model.startCoverSwitch("player"), true);
+  advance(model, 620);
+  player = model.getSnapshot().player;
+  assert.equal(player.coverSide, "left");
+});
+
+test("an empty magazine holds the line until explicit retreat, then reloads after a single trigger", () => {
   const model = new CombatModel({
     random: () => 0,
-    config: { magazineSize: 3, shotCooldownMs: 1, baseDamage: 0, reloadMs: 2000 }
+    config: { magazineSize: 3, shotCooldownMs: 0, baseDamage: 0, reloadMs: 2000 }
   });
-  model.setPeekIntent("player", true);
+  model.startAim("player");
   model.setPeekIntent("enemy", true);
-  advance(model, 420);
+  advance(model, 320);
+  assert.equal(model.setFireHeld("player", true), true);
+  advance(model, 60);
 
   let player = model.getSnapshot().player;
   assert.equal(player.ammo, 0);
@@ -146,7 +217,7 @@ test("an empty magazine holds the line until release, then reloads after a singl
   assert.equal(player.state, STATES.HOLDING, "empty actors stay exposed until their controller releases");
   assert.equal(player.shots, 3, "empty actors cannot keep attacking");
 
-  model.setPeekIntent("player", false);
+  assert.equal(model.startRetreat("player"), true);
   advance(model, 20);
   assert.equal(model.getSnapshot().player.state, STATES.RETREATING);
 
@@ -158,8 +229,8 @@ test("an empty magazine holds the line until release, then reloads after a singl
   assert.equal(player.exposure, 0);
   assert.equal(player.reloadRemainingMs, 0);
 
-  model.setPeekIntent("player", true);
-  assert.equal(model.getSnapshot().player.intentPeek, false, "peek input is ignored while the magazine is empty");
+  assert.equal(model.startAim("player"), false);
+  assert.equal(model.getSnapshot().player.intentPeek, false, "aim input is ignored while the magazine is empty");
   advance(model, 500);
   assert.equal(model.getSnapshot().player.state, STATES.HIDDEN, "reload never starts automatically");
 
@@ -175,7 +246,7 @@ test("an empty magazine holds the line until release, then reloads after a singl
   assert.equal(player.needsReload, false);
 });
 
-test("a partially used magazine can be actively reloaded only while fully in cover", () => {
+test("a partially used magazine cannot reload during aim transition but can reload in cover", () => {
   const model = new CombatModel({ config: { reloadMs: 2000 } });
   model.actors.player.ammo = 7;
 

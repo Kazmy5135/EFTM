@@ -24,12 +24,13 @@
       <span id="roundStatus">双方均在掩体内</span>
     </section>
 
-    <section id="battlefield" class="battlefield">
+    <section id="battlefield" class="battlefield" aria-label="战斗手势区域">
       <div class="depth-grid" aria-hidden="true"></div>
+      <div class="corridor-end" aria-hidden="true"><i></i><i></i><span>SECTOR R-17 · 通道尽头</span></div>
       <div class="single-line" aria-hidden="true"><span>唯一枪线</span></div>
 
-      <div class="actor-label enemy-label">
-        <div><strong>BOT · PMC</strong><span id="enemyStateText">掩体内</span></div>
+      <div id="enemyLabel" class="actor-label enemy-label concealed">
+        <div><strong>BOT · PMC</strong><span id="enemyStateText">目标丢失</span></div>
         <div class="health-track"><i id="enemyHealth"></i></div>
       </div>
 
@@ -56,12 +57,23 @@
         </div>
         <div class="muzzle"></div>
       </div>
-      <div class="cover player-cover"><i></i><i></i><i></i><span>K-04</span></div>
+      <div id="playerCoverLeft" class="cover player-cover left active"><i></i><i></i><i></i><span>L-04</span></div>
+      <div id="playerCoverRight" class="cover player-cover right"><i></i><i></i><i></i><span>R-04</span></div>
 
       <div class="actor-label player-label">
         <div><strong>YOU · PMC</strong><span id="playerStateText">掩体内 · 安全</span></div>
         <div class="health-track"><i id="playerHealth"></i></div>
       </div>
+
+      <div id="gestureGuide" class="gesture-guide" aria-live="polite">
+        <strong id="gestureGuideTitle">滑动操作</strong>
+        <small id="gestureGuideHint">左右切换掩体 · 上滑架枪</small>
+      </div>
+
+      <button id="fireControl" class="fire-control" type="button" hidden>
+        <span class="fire-control-icon" aria-hidden="true">●</span>
+        <span><strong id="fireControlTitle">按住开火</strong><small id="fireControlHint">松开停止射击</small></span>
+      </button>
 
       <div id="damageVignette" class="damage-vignette" aria-hidden="true"></div>
       <div id="combatTextLayer" class="combat-text-layer" aria-hidden="true"></div>
@@ -76,7 +88,7 @@
         <span class="empty-warning-mark" aria-hidden="true">!</span>
         <span class="empty-warning-copy">
           <strong>弹匣已空</strong>
-          <small id="emptyWarningHint">松开探身键 · 立即回掩体</small>
+          <small id="emptyWarningHint">右下换弹 · 或下滑回掩体</small>
         </span>
         <span class="empty-warning-code" aria-hidden="true">NO AMMO</span>
       </div>
@@ -86,30 +98,20 @@
           <div><span>暴露命中概率</span><strong id="aimPercent">安全</strong></div>
           <div class="aim-track"><i id="aimFill"></i></div>
         </div>
+      </div>
+
+      <div class="ammo-dock">
         <div id="ammoReadout" class="ammo-readout">
           <span>弹匣</span>
           <div><strong id="ammoCount">15</strong><small>/15</small></div>
           <em id="ammoStatus">就绪</em>
           <div class="reload-track"><i id="reloadFill"></i></div>
         </div>
-      </div>
-
-      <div class="action-row">
-        <div class="action-placeholder" aria-hidden="true"></div>
-
-        <button id="holdControl" class="hold-control" type="button" aria-describedby="controlHint">
-          <span class="finger-mark" aria-hidden="true"><i></i></span>
-          <span class="control-copy">
-            <strong id="controlTitle">按住 · 探身</strong><small id="controlHint">松开回掩体</small>
-          </span>
-          <span class="hold-ring" aria-hidden="true"></span>
-        </button>
-
         <button id="reloadControl" class="reload-control" type="button" aria-describedby="reloadControlHint">
           <span class="reload-control-icon" aria-hidden="true">↻</span>
           <span class="reload-control-copy">
-            <strong id="reloadControlTitle">弹匣已满</strong>
-            <small id="reloadControlHint">15 / 15</small>
+            <strong id="reloadControlTitle">换弹</strong>
+            <small id="reloadControlHint">弹匣已满</small>
           </span>
           <span id="reloadProgressFill" class="reload-progress-fill" aria-hidden="true"></span>
         </button>

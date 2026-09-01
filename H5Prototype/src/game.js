@@ -5,12 +5,15 @@
   const model = new CombatModel();
   const byId = (id) => document.getElementById(id);
   const elements = {
-    playerActor: byId("playerActor"), enemyActor: byId("enemyActor"),
+    playerActor: byId("playerActor"), enemyActor: byId("enemyActor"), enemyLabel: byId("enemyLabel"),
+    playerCoverLeft: byId("playerCoverLeft"), playerCoverRight: byId("playerCoverRight"),
     playerStateText: byId("playerStateText"), enemyStateText: byId("enemyStateText"),
     playerHealth: byId("playerHealth"), enemyHealth: byId("enemyHealth"),
     aimFill: byId("aimFill"), aimPercent: byId("aimPercent"),
     ammoReadout: byId("ammoReadout"), ammoCount: byId("ammoCount"), ammoStatus: byId("ammoStatus"), reloadFill: byId("reloadFill"),
-    holdControl: byId("holdControl"), controlTitle: byId("controlTitle"), controlHint: byId("controlHint"),
+    battlefield: byId("battlefield"), gestureGuide: byId("gestureGuide"),
+    gestureGuideTitle: byId("gestureGuideTitle"), gestureGuideHint: byId("gestureGuideHint"),
+    fireControl: byId("fireControl"), fireControlTitle: byId("fireControlTitle"), fireControlHint: byId("fireControlHint"),
     reloadControl: byId("reloadControl"), reloadControlTitle: byId("reloadControlTitle"),
     reloadControlHint: byId("reloadControlHint"), reloadProgressFill: byId("reloadProgressFill"),
     emptyWarning: byId("emptyWarning"), emptyWarningHint: byId("emptyWarningHint"), emptyFlash: byId("emptyFlash"),
@@ -22,14 +25,19 @@
 
   const stateLabels = {
     [STATES.HIDDEN]: "掩体内", [STATES.EXPOSING]: "探身中", [STATES.HOLDING]: "架枪中",
-    [STATES.RETREATING]: "回撤中", [STATES.RELOADING]: "换弹中", [STATES.DEAD]: "失去战斗力"
+    [STATES.RETREATING]: "回撤中", [STATES.SWITCHING]: "换掩体中", [STATES.RELOADING]: "换弹中", [STATES.DEAD]: "失去战斗力"
   };
 
   let lastFrame = performance.now();
   let enemyDecisionAt = 900;
   let enemyPeeking = false;
   let enemyReloadAt = 0;
-  let activePointerId = null;
+  let gesturePointerId = null;
+  let gestureStartX = 0;
+  let gestureStartY = 0;
+  let gestureTracking = false;
+  let firePointerId = null;
+  let fireGestureActive = false;
   let gameOver = false;
   let audioContext = null;
   let lastTouchEndAt = 0;
@@ -93,42 +101,131 @@
     window.setTimeout(() => popup.remove(), 760);
   }
 
-  function setPlayerIntent(shouldPeek) {
-    if (gameOver) return;
-    const player = model.getSnapshot().player;
-    if (shouldPeek && (player.needsReload || player.state === STATES.RELOADING)) return;
+  function triggerAim() {
+    if (gameOver) return false;
     ensureAudio();
-    model.setPeekIntent("player", shouldPeek);
-    elements.holdControl.classList.toggle("holding", shouldPeek);
+    if (!model.startAim("player")) return false;
+    elements.combatFeed.textContent = "上滑架枪 · 开始探身";
+    return true;
   }
 
-  function releasePointer(event) {
-    if (activePointerId !== null && (!event || event.pointerId === activePointerId)) {
-      activePointerId = null;
-      setPlayerIntent(false);
+  function triggerRetreat() {
+    if (gameOver || !model.startRetreat("player")) return false;
+    ensureAudio();
+    elements.combatFeed.textContent = "下滑 · 主动返回掩体";
+    return true;
+  }
+
+  function triggerCoverSwitch() {
+    if (gameOver || !model.startCoverSwitch("player")) return false;
+    ensureAudio();
+    elements.combatFeed.textContent = "横穿通道 · 被命中概率 20%";
+    if (navigator.vibrate) navigator.vibrate(24);
+    return true;
+  }
+
+  function setPlayerFireHeld(shouldFire) {
+    if (gameOver && shouldFire) return false;
+    const changed = model.setFireHeld("player", shouldFire);
+    fireGestureActive = Boolean(shouldFire && changed);
+    elements.fireControl.classList.toggle("firing-held", fireGestureActive);
+    if (fireGestureActive) {
+      ensureAudio();
+      // The first round leaves immediately on press; subsequent rounds are paced by the frame loop.
+      for (const event of model.step(1)) processEvent(event);
+      render(model.getSnapshot());
     }
+    return changed;
   }
 
-  elements.holdControl.addEventListener("pointerdown", (event) => {
+  function beginGesture(clientX, clientY, pointerId) {
+    if (gestureTracking || gameOver) return false;
+    gestureTracking = true;
+    gesturePointerId = pointerId;
+    gestureStartX = clientX;
+    gestureStartY = clientY;
+    elements.battlefield.classList.add("gesture-active");
+    elements.gestureGuide.classList.add("active");
+    return true;
+  }
+
+  function finishGesture(clientX, clientY) {
+    if (!gestureTracking) return;
+    const deltaX = clientX - gestureStartX;
+    const deltaY = clientY - gestureStartY;
+    const threshold = Math.max(42, elements.battlefield.clientWidth * 0.09);
+    gestureTracking = false;
+    gesturePointerId = null;
+    elements.battlefield.classList.remove("gesture-active");
+    elements.gestureGuide.classList.remove("active");
+    if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) < threshold) return;
+
+    const player = model.getSnapshot().player;
+    if (Math.abs(deltaX) > Math.abs(deltaY) * 1.15) {
+      const correctDirection = (player.coverSide === "left" && deltaX > 0) ||
+        (player.coverSide === "right" && deltaX < 0);
+      if (correctDirection) triggerCoverSwitch();
+      else elements.combatFeed.textContent = player.coverSide === "left" ? "请向右滑动切换掩体" : "请向左滑动切换掩体";
+      return;
+    }
+    if (deltaY < 0) triggerAim();
+    else triggerRetreat();
+  }
+
+  elements.battlefield.addEventListener("pointerdown", (event) => {
+    if (!beginGesture(event.clientX, event.clientY, event.pointerId)) return;
     event.preventDefault();
-    activePointerId = event.pointerId;
-    try {
-      elements.holdControl.setPointerCapture(event.pointerId);
-    } catch {
-      // The local release listener remains available when capture is unsupported.
-    }
-    setPlayerIntent(true);
+    try { elements.battlefield.setPointerCapture(event.pointerId); } catch { /* document fallback */ }
   });
-  elements.holdControl.addEventListener("pointerup", releasePointer);
-  elements.holdControl.addEventListener("pointercancel", releasePointer);
-  elements.holdControl.addEventListener("lostpointercapture", releasePointer);
-  elements.holdControl.addEventListener("contextmenu", (event) => event.preventDefault());
+  document.addEventListener("pointerup", (event) => {
+    if (gesturePointerId !== null && event.pointerId === gesturePointerId) finishGesture(event.clientX, event.clientY);
+    if (firePointerId !== null && event.pointerId === firePointerId) {
+      firePointerId = null;
+      setPlayerFireHeld(false);
+    }
+  }, { passive: false });
+  document.addEventListener("pointercancel", (event) => {
+    if (gesturePointerId !== null && event.pointerId === gesturePointerId) finishGesture(gestureStartX, gestureStartY);
+    if (firePointerId !== null && event.pointerId === firePointerId) {
+      firePointerId = null;
+      setPlayerFireHeld(false);
+    }
+  }, { passive: false });
+
+  elements.battlefield.addEventListener("touchstart", (event) => {
+    const touch = event.touches[0];
+    if (touch && beginGesture(touch.clientX, touch.clientY, "touch")) event.preventDefault();
+  }, { passive: false });
+  document.addEventListener("touchend", (event) => {
+    const touch = event.changedTouches[0];
+    if (gesturePointerId === "touch" && touch) finishGesture(touch.clientX, touch.clientY);
+    if (fireGestureActive) setPlayerFireHeld(false);
+  }, { passive: false });
+  document.addEventListener("touchcancel", () => {
+    if (gesturePointerId === "touch") finishGesture(gestureStartX, gestureStartY);
+    if (fireGestureActive) setPlayerFireHeld(false);
+  }, { passive: false });
+
+  elements.fireControl.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!setPlayerFireHeld(true)) return;
+    firePointerId = event.pointerId;
+    try { elements.fireControl.setPointerCapture(event.pointerId); } catch { /* document fallback */ }
+  });
+  elements.fireControl.addEventListener("touchstart", (event) => {
+    event.stopPropagation();
+    if (setPlayerFireHeld(true)) event.preventDefault();
+  }, { passive: false });
+  elements.fireControl.addEventListener("contextmenu", (event) => event.preventDefault());
 
   function triggerReload() {
     const player = model.getSnapshot().player;
-    if (player.state !== STATES.HIDDEN || player.ammo >= model.config.magazineSize) return false;
+    const canReloadHere = player.state === STATES.HIDDEN || player.state === STATES.HOLDING;
+    if (!canReloadHere || player.ammo >= model.config.magazineSize) return false;
     if (!model.startReload("player")) return false;
-    elements.combatFeed.textContent = "换弹已触发 · 2.0s";
+    setPlayerFireHeld(false);
+    elements.combatFeed.textContent = player.state === STATES.HOLDING ? "暴露换弹 · 仍会被攻击" : "掩体内换弹 · 2.0s";
     ensureAudio();
     if (navigator.vibrate) navigator.vibrate(25);
     return true;
@@ -141,21 +238,16 @@
   elements.reloadControl.addEventListener("contextmenu", (event) => event.preventDefault());
 
   window.addEventListener("keydown", (event) => {
-    if (event.code === "Space" && !event.repeat) { event.preventDefault(); setPlayerIntent(true); }
+    if (event.code === "KeyF") { event.preventDefault(); setPlayerFireHeld(true); return; }
+    if (event.repeat) return;
+    if (event.code === "ArrowUp") { event.preventDefault(); triggerAim(); }
+    if (event.code === "ArrowDown") { event.preventDefault(); triggerRetreat(); }
+    if (event.code === "KeyQ") { event.preventDefault(); triggerCoverSwitch(); }
   });
   window.addEventListener("keyup", (event) => {
-    if (event.code === "Space") { event.preventDefault(); setPlayerIntent(false); }
+    if (event.code === "KeyF") { event.preventDefault(); setPlayerFireHeld(false); }
   });
-  window.addEventListener("blur", () => {
-    activePointerId = null;
-    setPlayerIntent(false);
-  });
-  document.addEventListener("visibilitychange", () => {
-    if (document.hidden) {
-      activePointerId = null;
-      setPlayerIntent(false);
-    }
-  });
+  window.addEventListener("blur", () => setPlayerFireHeld(false));
 
   elements.resetButton.addEventListener("click", resetGame);
   elements.restartButton.addEventListener("click", resetGame);
@@ -203,7 +295,7 @@
       pulseClass(elements.tracer, "active", 130);
       playShotSound(event.shooterId);
       elements.combatFeed.textContent = event.shooterId === "player"
-        ? `自动开火 · 余弹 ${event.ammoRemaining}` : "敌方枪线开火";
+        ? `连续开火 · 余弹 ${event.ammoRemaining}` : "敌方枪线开火";
       if (!event.hit) {
         spawnCombatText(event.targetId, "MISS", "miss");
         elements.combatFeed.textContent = event.shooterId === "player" ? "MISS · 未命中敌方" : "MISS · 敌方未命中";
@@ -227,7 +319,7 @@
 
     if (event.type === "magazineEmpty") {
       if (event.actorId === "player") {
-        elements.combatFeed.textContent = "返回掩体，子弹夹已空";
+        elements.combatFeed.textContent = "弹匣已空 · 右下换弹或下滑回掩体";
         pulseClass(elements.emptyFlash, "active", 720);
         if (navigator.vibrate) navigator.vibrate([85, 45, 85]);
       } else {
@@ -236,18 +328,30 @@
       }
     }
 
+    if (event.type === "coverSwitchStarted" && event.actorId === "player") {
+      elements.combatFeed.textContent = "切换掩体中 · 每发 20% 命中概率";
+    }
+
+    if (event.type === "coverSwitchCompleted" && event.actorId === "player") {
+      elements.combatFeed.textContent = `已进入${event.coverSide === "left" ? "左侧" : "右侧"}掩体`;
+    }
+
     if (event.type === "reloadAvailable") {
-      if (event.actorId === "player") elements.combatFeed.textContent = "点击右侧按钮换弹";
+      if (event.actorId === "player") elements.combatFeed.textContent = "点击右下角换弹";
       else enemyReloadAt = performance.now() + randomBetween(250, 600);
     }
 
     if (event.type === "reloadStarted" && event.actorId === "player") {
-      elements.combatFeed.textContent = "换弹已触发 · 2.0s";
+      const player = model.getSnapshot().player;
+      elements.combatFeed.textContent = player.reloadReturnState === STATES.HOLDING
+        ? "架枪换弹 · 身体仍然暴露" : "掩体内换弹 · 2.0s";
     }
 
     if (event.type === "reloadCompleted") {
       if (event.actorId === "player") {
-        elements.combatFeed.textContent = "换弹完成 · 15 发就绪";
+        const player = model.getSnapshot().player;
+        elements.combatFeed.textContent = player.state === STATES.HOLDING
+          ? "换弹完成 · 继续架枪" : "换弹完成 · 15 发就绪";
         if (navigator.vibrate) navigator.vibrate(45);
       }
       else enemyDecisionAt = performance.now() + randomBetween(350, 900);
@@ -258,11 +362,11 @@
 
   function finishGame(playerWon) {
     gameOver = true;
-    activePointerId = null;
-    model.setPeekIntent("player", false);
+    setPlayerFireHeld(false);
     model.setPeekIntent("enemy", false);
-    elements.holdControl.classList.remove("holding");
-    elements.holdControl.disabled = true;
+    elements.battlefield.classList.remove("gesture-active");
+    elements.gestureGuide.classList.remove("active");
+    elements.fireControl.hidden = true;
     elements.reloadControl.disabled = true;
     elements.resultEyebrow.textContent = playerWon ? "枪线控制成功" : "交战失败";
     elements.resultTitle.textContent = playerWon ? "敌方失去战斗力" : "你被压制击倒";
@@ -274,10 +378,15 @@
     gameOver = false;
     enemyPeeking = false;
     enemyReloadAt = 0;
-    activePointerId = null;
     enemyDecisionAt = performance.now() + 900;
-    elements.holdControl.disabled = false;
-    elements.holdControl.classList.remove("holding");
+    gestureTracking = false;
+    gesturePointerId = null;
+    firePointerId = null;
+    fireGestureActive = false;
+    elements.battlefield.classList.remove("gesture-active");
+    elements.gestureGuide.classList.remove("active");
+    elements.fireControl.classList.remove("firing-held", "empty-alert");
+    elements.fireControl.hidden = true;
     elements.resultPanel.hidden = true;
     elements.playerActor.classList.remove("dead", "hit", "firing");
     elements.enemyActor.classList.remove("dead", "hit", "firing");
@@ -288,6 +397,26 @@
   function renderActor(element, actor) {
     const hiddenOffset = element.classList.contains("enemy") ? 46 : 52;
     element.style.setProperty("--actor-shift", `${((1 - actor.exposure) * hiddenOffset).toFixed(2)}%`);
+    if (actor.id === "player") {
+      const sidePosition = (side) => side === "left" ? 23 : 77;
+      let actorLeft = sidePosition(actor.coverSide);
+      if (actor.state === STATES.SWITCHING) {
+        const progress = 1 - actor.switchRemainingMs / model.config.switchCoverMs;
+        const from = sidePosition(actor.switchFromSide);
+        const target = sidePosition(actor.switchTargetSide);
+        actorLeft = from + (target - from) * Math.max(0, Math.min(1, progress));
+      }
+      element.style.setProperty("--actor-left", `${actorLeft.toFixed(2)}%`);
+      element.classList.toggle("switching", actor.state === STATES.SWITCHING);
+      const peeking = actor.exposure > 0 && actor.state !== STATES.SWITCHING;
+      const direction = actor.coverSide === "left" ? 1 : -1;
+      element.classList.toggle("peeking", peeking);
+      element.style.setProperty("--peek-lean", `${direction * 8}deg`);
+      element.style.setProperty("--peek-slide", `${direction * 8}%`);
+    } else {
+      element.style.setProperty("--actor-left", `${(50 + actor.exposure * 21).toFixed(2)}%`);
+      element.classList.toggle("concealed", actor.exposure <= 0 && actor.state !== STATES.DEAD);
+    }
     element.classList.toggle("dead", actor.state === STATES.DEAD);
   }
 
@@ -297,9 +426,9 @@
     renderActor(elements.enemyActor, enemy);
     elements.playerHealth.style.transform = `scaleX(${player.hp / 100})`;
     elements.enemyHealth.style.transform = `scaleX(${enemy.hp / 100})`;
-    const exposureHitChance = player.exposure > 0 ? model.hitChanceForExposure(player.exposure) : 0;
+    const exposureHitChance = model.hitChanceForTarget(player);
     elements.aimFill.style.transform = `scaleX(${exposureHitChance})`;
-    elements.aimPercent.textContent = player.exposure > 0 ? `${Math.round(exposureHitChance * 100)}%` : "安全";
+    elements.aimPercent.textContent = exposureHitChance > 0 ? `${Math.round(exposureHitChance * 100)}%` : "安全";
     elements.ammoCount.textContent = String(player.ammo).padStart(2, "0");
     const reloadProgress = player.state === STATES.RELOADING
       ? 1 - player.reloadRemainingMs / model.config.reloadMs
@@ -311,96 +440,131 @@
     else if (player.ammo <= 0) elements.ammoStatus.textContent = "空仓";
     else if (player.ammo < model.config.magazineSize) elements.ammoStatus.textContent = "可换";
     else elements.ammoStatus.textContent = "就绪";
+    const coverName = player.coverSide === "left" ? "左侧" : "右侧";
+    const exposedReload = player.state === STATES.RELOADING && player.reloadReturnState === STATES.HOLDING;
     elements.playerStateText.textContent = player.state === STATES.HIDDEN
-      ? (player.needsReload ? "掩体内 · 子弹夹已空" : "掩体内 · 安全")
-      : stateLabels[player.state];
-    elements.enemyStateText.textContent = enemy.state === STATES.RELOADING ? "掩体内" : stateLabels[enemy.state];
-
-    const inputLockedByReload = player.state === STATES.RELOADING || (player.needsReload && player.state !== STATES.HOLDING);
-    elements.holdControl.disabled = gameOver || inputLockedByReload;
-    if (inputLockedByReload && player.state !== STATES.HOLDING) elements.holdControl.classList.remove("holding");
+      ? `${coverName}掩体 · ${player.needsReload ? "弹匣已空" : "安全"}`
+      : (player.state === STATES.SWITCHING
+        ? "横穿通道 · 20%"
+        : (exposedReload ? "架枪换弹中 · 暴露" : stateLabels[player.state]));
+    const enemyConcealed = enemy.exposure <= 0 && enemy.state !== STATES.DEAD;
+    elements.enemyLabel.classList.toggle("concealed", enemyConcealed);
+    elements.enemyStateText.textContent = enemyConcealed ? "目标丢失" : stateLabels[enemy.state];
+    elements.playerCoverLeft.classList.toggle("active", player.state !== STATES.SWITCHING && player.coverSide === "left");
+    elements.playerCoverRight.classList.toggle("active", player.state !== STATES.SWITCHING && player.coverSide === "right");
 
     if (player.state === STATES.RELOADING) {
-      elements.controlTitle.textContent = "换弹中";
-      elements.controlHint.textContent = "等待 2 秒完成";
-      elements.safetyBadge.className = "safety-badge safe";
-      elements.safetyBadge.textContent = "掩体内换弹";
+      if (exposedReload) {
+        elements.safetyBadge.className = "safety-badge danger";
+        elements.safetyBadge.textContent = "架枪换弹 · 身体暴露";
+        elements.gestureGuideTitle.textContent = "换弹中";
+        elements.gestureGuideHint.textContent = "保持架枪暴露 · 完成后继续瞄准";
+      } else {
+        elements.safetyBadge.className = "safety-badge safe";
+        elements.safetyBadge.textContent = "掩体内换弹";
+        elements.gestureGuideTitle.textContent = "换弹中";
+        elements.gestureGuideHint.textContent = "掩体保护 · 等待完成";
+      }
+    } else if (player.state === STATES.SWITCHING) {
+      elements.safetyBadge.className = "safety-badge danger";
+      elements.safetyBadge.textContent = "每发 20% 命中";
+      elements.gestureGuideTitle.textContent = "切换中";
+      elements.gestureGuideHint.textContent = `前往${player.switchTargetSide === "left" ? "左侧" : "右侧"}掩体 · 被命中 20%`;
     } else if (player.needsReload) {
       if (player.state === STATES.HOLDING) {
-        elements.controlTitle.textContent = "弹匣已空";
-        elements.controlHint.textContent = "松开 · 立即回掩体";
         elements.safetyBadge.className = "safety-badge danger";
         elements.safetyBadge.textContent = "空弹暴露 · 无法攻击";
+        elements.gestureGuideTitle.textContent = "弹匣已空";
+        elements.gestureGuideHint.textContent = "右下换弹 · 或下滑回掩体";
       } else if (player.state === STATES.RETREATING) {
-        elements.controlTitle.textContent = "空弹 · 回撤中";
-        elements.controlHint.textContent = "准备点击换弹";
         elements.safetyBadge.className = "safety-badge danger";
         elements.safetyBadge.textContent = "回撤中可被命中";
+        elements.gestureGuideTitle.textContent = "空弹回撤中";
+        elements.gestureGuideHint.textContent = "回到掩体后点击右下换弹";
       } else {
-        elements.controlTitle.textContent = "禁止探身";
-        elements.controlHint.textContent = "点击右侧换弹";
         elements.safetyBadge.className = "safety-badge safe";
         elements.safetyBadge.textContent = "掩体保护 · 待换弹";
+        elements.gestureGuideTitle.textContent = "弹匣已空";
+        elements.gestureGuideHint.textContent = "点击右下角换弹";
       }
     } else if (player.state === STATES.HIDDEN) {
-      elements.controlTitle.textContent = "按住 · 探身";
-      elements.controlHint.textContent = "松开回掩体";
       elements.safetyBadge.className = "safety-badge safe";
       elements.safetyBadge.textContent = "掩体保护";
+      elements.gestureGuideTitle.textContent = `${coverName}掩体`;
+      elements.gestureGuideHint.textContent = player.coverSide === "left"
+        ? "向右滑切换 · 上滑架枪" : "向左滑切换 · 上滑架枪";
     } else if (player.state === STATES.RETREATING) {
-      elements.controlTitle.textContent = "正在回撤";
-      elements.controlHint.textContent = "回掩体后安全";
       elements.safetyBadge.className = "safety-badge danger";
       elements.safetyBadge.textContent = "仍可被命中";
+      elements.gestureGuideTitle.textContent = "正在回撤";
+      elements.gestureGuideHint.textContent = "回到掩体后恢复安全";
     } else if (player.state === STATES.HOLDING) {
-      elements.controlTitle.textContent = "保持 · 架枪";
-      elements.controlHint.textContent = "敌人探身即开火";
       elements.safetyBadge.className = "safety-badge exposed";
       elements.safetyBadge.textContent = "身体暴露";
+      elements.gestureGuideTitle.textContent = "歪头架枪中";
+      elements.gestureGuideHint.textContent = "按住中央开火 · 下滑回掩体";
     } else {
-      elements.controlTitle.textContent = "探身中 · 按住";
-      elements.controlHint.textContent = player.exposure < 0.5 ? "前 150ms 安全" : "进入敌方火力区";
       elements.safetyBadge.className = "safety-badge danger";
       elements.safetyBadge.textContent = "暴露增加";
+      elements.gestureGuideTitle.textContent = "歪头架枪中";
+      elements.gestureGuideHint.textContent = player.exposure < 0.5
+        ? "建立动作不可取消 · 前150ms安全" : "进入火力区 · 完成后可开火";
     }
+    elements.gestureGuide.classList.toggle("danger", player.exposure > 0 || player.state === STATES.SWITCHING);
 
     const inCover = player.state === STATES.HIDDEN;
     const reloadInProgress = player.state === STATES.RELOADING;
-    const canStartReload = inCover && player.ammo < model.config.magazineSize;
+    const canStartReload = (inCover || player.state === STATES.HOLDING) && player.ammo < model.config.magazineSize;
     elements.reloadControl.disabled = gameOver || !canStartReload;
     elements.reloadProgressFill.style.transform = `scaleX(${Math.max(0, Math.min(1, reloadProgress))})`;
 
     const showEmptyAlert = !gameOver && player.needsReload && !reloadInProgress;
     elements.emptyWarning.hidden = !showEmptyAlert;
-    elements.holdControl.classList.toggle("empty-alert", showEmptyAlert);
-    elements.reloadControl.classList.toggle("empty-alert", showEmptyAlert && inCover);
+    elements.fireControl.classList.toggle("empty-alert", showEmptyAlert && player.state === STATES.HOLDING);
+    elements.reloadControl.classList.toggle("empty-alert", showEmptyAlert && (inCover || player.state === STATES.HOLDING));
     if (showEmptyAlert) {
-      if (player.state === STATES.HOLDING) elements.emptyWarningHint.textContent = "松开探身键 · 立即回掩体";
+      if (player.state === STATES.HOLDING) elements.emptyWarningHint.textContent = "右下换弹 · 或下滑回掩体";
       else if (player.state === STATES.RETREATING) elements.emptyWarningHint.textContent = "回撤中 · 准备换弹";
-      else elements.emptyWarningHint.textContent = "点击右侧按钮 · 立即换弹";
+      else elements.emptyWarningHint.textContent = "点击右下角 · 立即换弹";
+    }
+
+    const fireVisible = !gameOver && player.state === STATES.HOLDING;
+    elements.fireControl.hidden = !fireVisible;
+    elements.fireControl.disabled = !fireVisible || player.ammo <= 0;
+    elements.fireControl.classList.toggle("firing-held", fireVisible && player.fireHeld);
+    if (player.ammo <= 0) {
+      elements.fireControlTitle.textContent = "空弹";
+      elements.fireControlHint.textContent = "点击右下换弹";
+    } else if (player.fireHeld) {
+      elements.fireControlTitle.textContent = "连续开火";
+      elements.fireControlHint.textContent = "松开停止";
+    } else {
+      elements.fireControlTitle.textContent = "按住开火";
+      elements.fireControlHint.textContent = "松开停止";
     }
 
     if (reloadInProgress) {
       elements.reloadControlTitle.textContent = `换弹 ${(player.reloadRemainingMs / 1000).toFixed(1)}s`;
-      elements.reloadControlHint.textContent = "自动进行中";
-    } else if (!inCover) {
-      elements.reloadControlTitle.textContent = "掩体外不可用";
-      elements.reloadControlHint.textContent = "先回到掩体";
+      elements.reloadControlHint.textContent = exposedReload ? "架枪暴露中" : "掩体内进行";
     } else if (player.ammo >= model.config.magazineSize) {
-      elements.reloadControlTitle.textContent = "弹匣已满";
-      elements.reloadControlHint.textContent = `${model.config.magazineSize} / ${model.config.magazineSize}`;
+      elements.reloadControlTitle.textContent = "换弹";
+      elements.reloadControlHint.textContent = "弹匣已满";
+    } else if (!inCover && player.state !== STATES.HOLDING) {
+      elements.reloadControlTitle.textContent = "换弹";
+      elements.reloadControlHint.textContent = "当前不可用";
     } else if (player.needsReload) {
-      elements.reloadControlTitle.textContent = "立即换弹";
-      elements.reloadControlHint.textContent = "点击一次";
+      elements.reloadControlTitle.textContent = "换弹";
+      elements.reloadControlHint.textContent = "空匣 · 点击";
     } else {
-      elements.reloadControlTitle.textContent = "点击 · 换弹";
-      elements.reloadControlHint.textContent = "松手后开始";
+      elements.reloadControlTitle.textContent = "换弹";
+      elements.reloadControlHint.textContent = player.state === STATES.HOLDING ? "架枪中可用" : "掩体内可用";
     }
 
     if (!gameOver) {
-      if (player.exposure <= 0 && enemy.exposure <= 0) elements.roundStatus.textContent = "双方均在掩体内";
+      if (player.state === STATES.SWITCHING) elements.roundStatus.textContent = "横穿通道 · 每发 20% 命中概率";
+      else if (player.exposure <= 0 && enemy.exposure <= 0) elements.roundStatus.textContent = "通道安静 · 敌人不可见";
       else if (enemy.state === STATES.HOLDING && player.exposure <= 0) elements.roundStatus.textContent = "敌方已经建立枪线";
-      else if (player.state === STATES.HOLDING && enemy.exposure <= 0) elements.roundStatus.textContent = "你正在提前架枪";
+      else if ((player.state === STATES.HOLDING || exposedReload) && enemy.exposure <= 0) elements.roundStatus.textContent = exposedReload ? "架枪换弹 · 仍在枪线" : "你正在提前架枪";
       else if (player.exposure > 0 && enemy.exposure > 0) elements.roundStatus.textContent = "双方进入同一枪线";
       else elements.roundStatus.textContent = "枪线争夺中";
     }

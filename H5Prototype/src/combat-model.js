@@ -10,6 +10,7 @@
     EXPOSING: "exposing",
     HOLDING: "holding",
     RETREATING: "retreating",
+    SWITCHING: "switching",
     RELOADING: "reloading",
     DEAD: "dead"
   });
@@ -22,6 +23,8 @@
     shotCooldownMs: 100,
     magazineSize: 15,
     reloadMs: 2000,
+    switchCoverMs: 600,
+    switchCoverHitChance: 0.2,
     baseDamage: 5,
     minimumExposureHitChance: 0.3,
     maximumExposureHitChance: 1
@@ -37,10 +40,17 @@
       exposure: 0,
       aim: 0,
       cooldownMs: 0,
+      fireHeld: false,
+      automaticFire: id === "enemy",
       hp: 100,
       ammo: DEFAULTS.magazineSize,
       needsReload: false,
       reloadRemainingMs: 0,
+      reloadReturnState: null,
+      coverSide: id === "player" ? "left" : "right",
+      switchFromSide: null,
+      switchTargetSide: null,
+      switchRemainingMs: 0,
       shots: 0,
       hits: 0
     };
@@ -74,9 +84,60 @@
       actor.intentPeek = Boolean(shouldPeek);
     }
 
+    startAim(actorId) {
+      const actor = this.actors[actorId];
+      if (!actor || actor.state !== STATES.HIDDEN || actor.needsReload) return false;
+      actor.intentPeek = true;
+      return true;
+    }
+
+    startRetreat(actorId) {
+      const actor = this.actors[actorId];
+      if (!actor || actor.state !== STATES.HOLDING) return false;
+      actor.intentPeek = false;
+      actor.fireHeld = false;
+      return true;
+    }
+
+    setFireHeld(actorId, shouldFire) {
+      const actor = this.actors[actorId];
+      if (!actor) return false;
+      if (!shouldFire) {
+        actor.fireHeld = false;
+        return true;
+      }
+      if (!this.canFireWeapon(actor)) return false;
+      actor.fireHeld = true;
+      return true;
+    }
+
+    startCoverSwitch(actorId) {
+      const actor = this.actors[actorId];
+      if (!actor || actor.state !== STATES.HIDDEN) return false;
+      actor.intentPeek = false;
+      actor.fireHeld = false;
+      actor.state = STATES.SWITCHING;
+      actor.exposure = 1;
+      actor.aim = 0;
+      actor.switchFromSide = actor.coverSide;
+      actor.switchTargetSide = actor.coverSide === "left" ? "right" : "left";
+      actor.switchRemainingMs = this.config.switchCoverMs;
+      this.events.push({
+        type: "coverSwitchStarted",
+        timeMs: this.timeMs,
+        actorId: actor.id,
+        fromSide: actor.switchFromSide,
+        targetSide: actor.switchTargetSide,
+        durationMs: this.config.switchCoverMs,
+        hitChance: this.config.switchCoverHitChance
+      });
+      return true;
+    }
+
     startReload(actorId) {
       const actor = this.actors[actorId];
-      if (!actor || actor.state !== STATES.HIDDEN || actor.ammo >= this.config.magazineSize) return false;
+      const canReloadHere = actor && (actor.state === STATES.HIDDEN || actor.state === STATES.HOLDING);
+      if (!canReloadHere || actor.ammo >= this.config.magazineSize) return false;
       this.beginReload(actor);
       return true;
     }
@@ -94,21 +155,44 @@
     updateActor(actor, dt) {
       if (actor.state === STATES.DEAD) return;
 
+      actor.cooldownMs = Math.max(0, actor.cooldownMs - dt);
+
       if (actor.state === STATES.RELOADING) {
-        actor.intentPeek = false;
-        actor.exposure = 0;
-        actor.aim = 0;
+        const returnsToAim = actor.reloadReturnState === STATES.HOLDING;
+        actor.intentPeek = returnsToAim;
+        actor.fireHeld = false;
+        actor.exposure = returnsToAim ? 1 : 0;
+        actor.aim = returnsToAim ? 1 : 0;
         actor.reloadRemainingMs = Math.max(0, actor.reloadRemainingMs - dt);
         if (actor.reloadRemainingMs <= 0) {
           actor.ammo = this.config.magazineSize;
           actor.needsReload = false;
-          actor.state = STATES.HIDDEN;
+          actor.state = returnsToAim ? STATES.HOLDING : STATES.HIDDEN;
+          actor.intentPeek = returnsToAim;
+          actor.exposure = returnsToAim ? 1 : 0;
+          actor.aim = returnsToAim ? 1 : 0;
+          actor.reloadReturnState = null;
           this.events.push({ type: "reloadCompleted", timeMs: this.timeMs, actorId: actor.id, ammo: actor.ammo });
         }
         return;
       }
 
-      actor.cooldownMs = Math.max(0, actor.cooldownMs - dt);
+      if (actor.state === STATES.SWITCHING) {
+        actor.intentPeek = false;
+        actor.fireHeld = false;
+        actor.exposure = 1;
+        actor.aim = 0;
+        actor.switchRemainingMs = Math.max(0, actor.switchRemainingMs - dt);
+        if (actor.switchRemainingMs <= 0) {
+          actor.coverSide = actor.switchTargetSide;
+          actor.switchFromSide = null;
+          actor.switchTargetSide = null;
+          actor.exposure = 0;
+          actor.state = STATES.HIDDEN;
+          this.events.push({ type: "coverSwitchCompleted", timeMs: this.timeMs, actorId: actor.id, coverSide: actor.coverSide });
+        }
+        return;
+      }
 
       if (actor.intentPeek) {
         if (!actor.needsReload && (actor.state === STATES.HIDDEN || actor.state === STATES.RETREATING)) actor.state = STATES.EXPOSING;
@@ -142,10 +226,12 @@
     }
 
     beginReload(actor) {
+      actor.reloadReturnState = actor.state;
       actor.state = STATES.RELOADING;
-      actor.intentPeek = false;
-      actor.exposure = 0;
-      actor.aim = 0;
+      actor.fireHeld = false;
+      actor.intentPeek = actor.reloadReturnState === STATES.HOLDING;
+      actor.exposure = actor.reloadReturnState === STATES.HOLDING ? 1 : 0;
+      actor.aim = actor.reloadReturnState === STATES.HOLDING ? 1 : 0;
       actor.reloadRemainingMs = this.config.reloadMs;
       this.events.push({ type: "reloadStarted", timeMs: this.timeMs, actorId: actor.id, durationMs: this.config.reloadMs });
     }
@@ -154,8 +240,12 @@
       const player = this.actors.player;
       const enemy = this.actors.enemy;
       const candidates = [];
-      if (this.canShoot(player, enemy)) candidates.push({ shooter: player, target: enemy });
-      if (this.canShoot(enemy, player)) candidates.push({ shooter: enemy, target: player });
+      if (player.fireHeld && this.canFireWeapon(player) && enemy.state !== STATES.DEAD) {
+        candidates.push({ shooter: player, target: enemy });
+      }
+      if (enemy.automaticFire && this.canAutoShoot(enemy, player)) {
+        candidates.push({ shooter: enemy, target: player });
+      }
 
       candidates.sort((left, right) => {
         const aimDifference = right.shooter.aim - left.shooter.aim;
@@ -168,13 +258,21 @@
       }
     }
 
-    canShoot(shooter, target) {
-      return shooter.state === STATES.HOLDING && target.state !== STATES.DEAD &&
-        target.exposure > 0 && shooter.ammo > 0 && !shooter.needsReload && shooter.cooldownMs <= 0;
+    canFireWeapon(shooter) {
+      return shooter.state === STATES.HOLDING && shooter.ammo > 0 &&
+        !shooter.needsReload && shooter.cooldownMs <= 0;
+    }
+
+    canAutoShoot(shooter, target) {
+      return this.canFireWeapon(shooter) && target.state !== STATES.DEAD && this.isTargetable(target);
+    }
+
+    isTargetable(target) {
+      return target.state === STATES.SWITCHING || target.exposure > 0;
     }
 
     fire(shooter, target) {
-      const hitChance = this.hitChanceForExposure(target.exposure);
+      const hitChance = this.hitChanceForTarget(target);
       const hit = hitChance > 0 && this.random() < hitChance;
       shooter.shots += 1;
       shooter.ammo -= 1;
@@ -197,12 +295,14 @@
         if (target.hp <= 0) {
           target.state = STATES.DEAD;
           target.intentPeek = false;
+          target.fireHeld = false;
           this.events.push({ type: "death", timeMs: this.timeMs, actorId: target.id, killerId: shooter.id });
         }
       }
 
       if (shooter.ammo <= 0 && shooter.state !== STATES.DEAD) {
         shooter.needsReload = true;
+        shooter.fireHeld = false;
         this.events.push({ type: "magazineEmpty", timeMs: this.timeMs, actorId: shooter.id });
       }
     }
@@ -213,6 +313,11 @@
       const vulnerableProgress = (normalizedExposure - 0.5) / 0.5;
       return this.config.minimumExposureHitChance +
         (this.config.maximumExposureHitChance - this.config.minimumExposureHitChance) * vulnerableProgress;
+    }
+
+    hitChanceForTarget(target) {
+      if (target.state === STATES.SWITCHING) return this.config.switchCoverHitChance;
+      return this.hitChanceForExposure(target.exposure);
     }
 
     drainEvents() {

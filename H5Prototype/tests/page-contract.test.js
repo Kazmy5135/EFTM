@@ -52,26 +52,58 @@ test("player sees own magazine while enemy reload countdown stays hidden", () =>
   assert.match(html, /<small>\/15<\/small>/);
   assert.match(html, /id="reloadFill"/);
   assert.doesNotMatch(html, /id="enemyAmmo/);
-  assert.match(game, /enemy\.state === STATES\.RELOADING \? "掩体内"/);
+  assert.match(game, /enemyConcealed \? "目标丢失" : stateLabels\[enemy\.state\]/);
 });
 
-test("bottom controls reserve left space, keep peek in the center, and put reload on the right", () => {
-  assert.match(html, /class="action-row"[\s\S]*class="action-placeholder"[\s\S]*id="holdControl"[\s\S]*id="reloadControl"/);
+test("battlefield gestures replace the three bottom action buttons", () => {
+  assert.match(html, /id="battlefield"[^>]*aria-label="战斗手势区域"/);
+  assert.match(html, /id="gestureGuide"/);
+  assert.doesNotMatch(html, /class="action-row"/);
+  assert.doesNotMatch(html, /id="switchControl"|id="holdControl"/);
   assert.doesNotMatch(html, /id="reloadSlider"/);
+  assert.match(html, /id="fireControl"/);
+  assert.match(game, /battlefield\.addEventListener\("pointerdown"/);
+  assert.match(game, /battlefield\.addEventListener\("touchstart"/);
+  assert.match(game, /player\.coverSide === "left" && deltaX > 0/);
+  assert.match(game, /player\.coverSide === "right" && deltaX < 0/);
+  assert.match(game, /model\.startCoverSwitch\("player"\)/);
+  assert.match(game, /if \(deltaY < 0\) triggerAim\(\)/);
+  assert.match(game, /else triggerRetreat\(\)/);
+  assert.match(game, /model\.startAim\("player"\)/);
+  assert.match(game, /model\.startRetreat\("player"\)/);
+  assert.match(styles, /\.actor\.player\.peeking \.soldier/);
+});
+
+test("aiming reveals a hold-to-fire control and ammo-adjacent reload control", () => {
+  assert.match(html, /id="fireControl"[^>]*hidden/);
+  assert.match(game, /fireControl\.addEventListener\("pointerdown"/);
+  assert.match(game, /fireControl\.addEventListener\("touchstart"/);
+  assert.match(game, /model\.setFireHeld\("player", shouldFire\)/);
+  assert.match(game, /for \(const event of model\.step\(1\)\) processEvent\(event\)/);
+  assert.match(game, /setPlayerFireHeld\(false\)/);
+  assert.match(game, /fireVisible = !gameOver && player\.state === STATES\.HOLDING/);
+  assert.match(html, /class="ammo-dock"[\s\S]*id="ammoReadout"[\s\S]*id="reloadControl"/);
   assert.match(html, /id="reloadControlTitle"/);
   assert.match(html, /id="reloadProgressFill"/);
-  assert.match(game, /返回掩体，子弹夹已空/);
   assert.match(game, /model\.startReload\("player"\)/);
   assert.doesNotMatch(game, /cancelReload/);
-  assert.match(game, /player\.state !== STATES\.HIDDEN/);
+  assert.match(game, /player\.state === STATES\.HIDDEN \|\| player\.state === STATES\.HOLDING/);
   assert.match(game, /player\.ammo >= model\.config\.magazineSize/);
   assert.match(game, /reloadControl\.addEventListener\("click"/);
-  assert.match(game, /换弹已触发 · 2\.0s/);
-  assert.match(game, /自动进行中/);
-  assert.match(styles, /\.action-row\s*\{[\s\S]*grid-template-columns:\s*repeat\(3/);
-  assert.match(styles, /\.action-row > \.hold-control/);
-  assert.match(styles, /\.action-row > \.reload-control/);
+  assert.match(styles, /\.fire-control\s*\{[\s\S]*position:\s*absolute/);
+  assert.match(styles, /\.ammo-dock\s*\{/);
   assert.match(styles, /\.reload-progress-fill/);
+});
+
+test("the enemy occupies the corridor end and is visually concealed in cover", () => {
+  assert.match(html, /class="corridor-end"/);
+  assert.match(html, /id="enemyLabel" class="actor-label enemy-label concealed"/);
+  assert.match(html, /class="cover enemy-cover"/);
+  assert.match(game, /enemyActor[\s\S]*classList\.toggle\("concealed"/);
+  assert.match(game, /enemyLabel\.classList\.toggle\("concealed", enemyConcealed\)/);
+  assert.match(styles, /\.actor\.enemy\.concealed\s*\{\s*opacity:\s*0/);
+  assert.match(styles, /\.corridor-end\s*\{/);
+  assert.match(styles, /\.enemy-cover\s*\{/);
 });
 
 test("an empty player magazine raises a persistent high-priority warning", () => {
@@ -81,12 +113,11 @@ test("an empty player magazine raises a persistent high-priority warning", () =>
   assert.match(game, /pulseClass\(elements\.emptyFlash, "active", 720\)/);
   assert.match(game, /navigator\.vibrate\(\[85, 45, 85\]\)/);
   assert.match(game, /elements\.emptyWarning\.hidden = !showEmptyAlert/);
-  assert.match(game, /holdControl\.classList\.toggle\("empty-alert", showEmptyAlert\)/);
-  assert.match(game, /reloadControl\.classList\.toggle\("empty-alert", showEmptyAlert && inCover\)/);
-  assert.match(game, /点击右侧按钮 · 立即换弹/);
+  assert.match(game, /fireControl\.classList\.toggle\("empty-alert"/);
+  assert.match(game, /reloadControl\.classList\.toggle\("empty-alert"/);
+  assert.match(game, /点击右下角 · 立即换弹/);
   assert.match(styles, /\.empty-warning\s*\{/);
   assert.match(styles, /@keyframes emptyWarningPulse/);
-  assert.match(styles, /\.hold-control\.empty-alert/);
   assert.match(styles, /\.reload-control\.empty-alert/);
 });
 
