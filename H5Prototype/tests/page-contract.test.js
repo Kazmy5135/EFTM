@@ -23,13 +23,19 @@ test("page keeps the 1080 by 2160 portrait contract", () => {
   assert.match(styles, /\.unsupported\[hidden\]\s*\{\s*display:\s*none/);
 });
 
-test("prototype contains only the camera peek interaction", () => {
+test("prototype exposes separate true aim, fake action, and contextual fire controls", () => {
   assert.match(html, /id="sceneCanvas"/);
-  assert.match(html, /id="peekControl"/);
+  assert.match(html, /id="trueAimControl"/);
+  assert.match(html, /id="fakePeekControl"/);
+  assert.match(html, /id="fireControl"/);
   assert.match(html, /<script src="peek-app\.js"><\/script>/);
-  assert.match(html, /按住探头观察/);
-  assert.doesNotMatch(html, /id="fireControl"|id="reloadControl"|id="playerActor"|id="enemyActor"|id="ammoCount"/);
+  assert.match(html, /真架枪点击锁定/);
+  assert.match(html, /假动作按住探头/);
+  assert.match(html, /掩体后 · 通道边缘可见/);
+  assert.doesNotMatch(html, /id="reloadControl"|id="playerActor"|id="ammoCount"/);
   assert.doesNotMatch(scene, /CombatModel|startReload|startCoverSwitch|resolveShots/);
+  assert.match(styles, /\.fire-control[^}]*width:\s*16vh[^}]*height:\s*16vh[^}]*border-radius:\s*50%/s);
+  assert.match(styles, /\.action-control[^}]*min-height:\s*10\.4vh/);
 });
 
 test("three dimensional corridor and real cover geometry are created", () => {
@@ -41,15 +47,36 @@ test("three dimensional corridor and real cover geometry are created", () => {
   assert.match(scene, /"left-wall"/);
   assert.match(scene, /"right-wall"/);
   assert.match(scene, /"far-wall"/);
+  assert.match(scene, /"dummy-head"/);
+  assert.match(scene, /"dummy-cover"/);
 });
 
-test("pointer press holds peek and document release returns to cover", () => {
-  assert.match(scene, /peekButton\.addEventListener\("pointerdown"/);
-  assert.match(scene, /setHeld\(true\)/);
+test("fake action holds peek while true aim latches and unlocks center-ray fire", () => {
+  assert.match(scene, /fakePeekButton\.addEventListener\("pointerdown"/);
+  assert.match(scene, /trueAimButton\.addEventListener\("click"/);
+  assert.match(scene, /toggleCommitted\(\)/);
+  assert.match(scene, /setFakeHeld\(true\)/);
   assert.match(scene, /document\.addEventListener\("pointerup", releasePointer/);
   assert.match(scene, /document\.addEventListener\("pointercancel", releasePointer/);
-  assert.match(scene, /setHeld\(false\)/);
+  assert.match(scene, /setFakeHeld\(false\)/);
   assert.match(scene, /window\.addEventListener\("blur"/);
+  assert.match(scene, /fireButton\.addEventListener\("pointerdown"/);
+  assert.match(scene, /fireButton\.disabled = !committed/);
+  assert.match(scene, /if \(!\(aimInteraction\.committed \|\| debugAim\)\) return/);
+  assert.match(scene, /isFiring = true/);
+  assert.match(scene, /document\.addEventListener\("pointerup", releaseFirePointer/);
+  assert.match(scene, /document\.addEventListener\("pointercancel", releaseFirePointer/);
+  assert.match(scene, /document\.addEventListener\("pointermove"/);
+  assert.match(scene, /aimYaw = THREE\.MathUtils\.clamp/);
+  assert.match(scene, /aimPitch = THREE\.MathUtils\.clamp/);
+  assert.match(scene, /const SHOT_INTERVAL_MS = 108/);
+  assert.match(scene, /const RECOIL_VERTICAL_PER_SHOT = 0\.018/);
+  assert.match(scene, /const RECOIL_HORIZONTAL_PER_SHOT = 0\.012/);
+  assert.match(scene, /recoilPitch = Math\.min\(0\.09/);
+  assert.match(scene, /Math\.random\(\) \* 2 - 1/);
+  assert.match(scene, /if \(isFiring\) fireAtReticle\(\)/);
+  assert.match(scene, /raycaster\.setFromCamera\(screenCenter, camera\)/);
+  assert.match(scene, /isDummyHead/);
 });
 
 test("mobile browser selection and zoom gestures remain suppressed", () => {

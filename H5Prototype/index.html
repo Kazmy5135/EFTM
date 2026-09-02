@@ -25,28 +25,42 @@
       <span class="state-dot" aria-hidden="true"></span>
       <div>
         <small>CAMERA STATE</small>
-        <strong id="stateLabel">掩体后 · 通道不可见</strong>
+        <strong id="stateLabel">掩体后 · 通道边缘可见</strong>
       </div>
     </section>
 
     <div id="reticle" class="reticle" aria-hidden="true"><i></i><span></span></div>
 
-    <section class="instruction-card">
+    <section id="instructionCard" class="instruction-card">
       <span class="lean-icon" aria-hidden="true"><i></i></span>
       <div>
-        <strong>按住探头观察</strong>
-        <small>摄像机横移并侧倾 · 松开立即缩回</small>
+        <strong>选择你的探头方式</strong>
+        <small>真架枪点击锁定 · 假动作按住探头</small>
       </div>
     </section>
 
     <div class="peek-progress" aria-hidden="true"><i id="peekProgressFill"></i></div>
 
-    <button id="peekControl" class="peek-control" type="button" aria-pressed="false">
-      <span class="button-rings" aria-hidden="true"><i></i><i></i></span>
-      <span class="button-copy"><strong>PEEK</strong><small>按住不放</small></span>
+    <div id="shotFlash" class="shot-flash" aria-hidden="true"></div>
+    <div id="shotResult" class="shot-result" aria-live="polite"></div>
+
+    <button id="fireControl" class="fire-control" type="button" aria-pressed="false" disabled hidden>
+      <span>FIRE</span>
+      <small>按住射击 · 拖动压枪</small>
     </button>
 
-    <p class="experiment-note">仅验证摄像机视角 · 无敌人 / 无开火 / 无换弹</p>
+    <div class="action-row">
+      <button id="trueAimControl" class="action-control true-aim-control" type="button" aria-pressed="false">
+        <span class="action-symbol" aria-hidden="true">◎</span>
+        <span class="button-copy"><strong>真架枪</strong><small>点击锁定</small></span>
+      </button>
+      <button id="fakePeekControl" class="action-control fake-peek-control" type="button" aria-pressed="false">
+        <span class="action-symbol" aria-hidden="true">↗</span>
+        <span class="button-copy"><strong>假动作</strong><small>按住探头</small></span>
+      </button>
+    </div>
+
+    <p class="experiment-note">视角 / 假动作 / 准星射击验证 · 无伤害 / 无弹匣</p>
 
     <div id="unsupported" class="unsupported" role="alert" hidden>
       <strong>设备无法启动 3D 场景</strong>

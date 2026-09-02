@@ -1,13 +1,13 @@
 export const PEEK_CONFIG = Object.freeze({
   enterMs: 300,
   returnMs: 240,
-  hiddenX: 0.92,
+  hiddenX: 0.4,
   exposedX: 0.02,
   hiddenY: 0,
   exposedY: -0.055,
-  hiddenZ: 0.62,
-  exposedZ: 0.48,
-  exposedRoll: -0.125,
+  hiddenZ: 2.1,
+  exposedZ: 1.1,
+  exposedRoll: 0.125,
   exposedYaw: -0.018
 });
 

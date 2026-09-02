@@ -2,13 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { PeekState, PEEK_CONFIG } from "../src/peek-state.js";
 
-test("camera begins fully hidden behind cover", () => {
+test("camera begins behind cover with a level resting pose", () => {
   const state = new PeekState();
   const snapshot = state.snapshot();
   assert.equal(snapshot.phase, "hidden");
   assert.equal(snapshot.progress, 0);
   assert.equal(snapshot.pose.x, PEEK_CONFIG.hiddenX);
   assert.equal(snapshot.pose.roll, 0);
+  assert.ok(PEEK_CONFIG.hiddenZ > PEEK_CONFIG.exposedZ, "hidden camera should sit farther back from cover");
 });
 
 test("holding peek reaches the exposed camera pose in 300ms", () => {
@@ -23,6 +24,7 @@ test("holding peek reaches the exposed camera pose in 300ms", () => {
   assert.equal(snapshot.progress, 1);
   assert.ok(Math.abs(snapshot.pose.x - PEEK_CONFIG.exposedX) < 1e-9);
   assert.ok(Math.abs(snapshot.pose.roll - PEEK_CONFIG.exposedRoll) < 1e-9);
+  assert.ok(snapshot.pose.roll > 0, "left peek must lean in the positive roll direction");
 });
 
 test("releasing peek returns fully behind cover", () => {

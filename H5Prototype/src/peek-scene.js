@@ -1,14 +1,22 @@
 import * as THREE from "three";
 import { PeekState } from "./peek-state.js";
+import { AimInteraction } from "./aim-interaction.js";
 
 const canvas = document.querySelector("#sceneCanvas");
-const peekButton = document.querySelector("#peekControl");
+const trueAimButton = document.querySelector("#trueAimControl");
+const fakePeekButton = document.querySelector("#fakePeekControl");
+const fireButton = document.querySelector("#fireControl");
 const stateLabel = document.querySelector("#stateLabel");
 const progressFill = document.querySelector("#peekProgressFill");
 const reticle = document.querySelector("#reticle");
+const shotFlash = document.querySelector("#shotFlash");
+const shotResult = document.querySelector("#shotResult");
 const unsupported = document.querySelector("#unsupported");
-const debugPeek = new URLSearchParams(window.location.search).get("debugPeek") === "1";
+const debugParams = new URLSearchParams(window.location.search);
+const debugPeek = debugParams.get("debugPeek") === "1";
+const debugAim = debugParams.get("debugAim") === "1";
 const peekState = new PeekState();
+const aimInteraction = new AimInteraction();
 
 let renderer = null;
 let fallbackContext = null;
@@ -24,14 +32,14 @@ if (renderer) {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.22;
+  renderer.toneMappingExposure = 1.72;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
 }
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x070c0d);
-scene.fog = new THREE.FogExp2(0x081011, 0.045);
+scene.background = new THREE.Color(0x121d20);
+scene.fog = new THREE.FogExp2(0x152326, 0.027);
 
 const camera = new THREE.PerspectiveCamera(54, 0.5, 0.05, 40);
 camera.rotation.order = "YXZ";
@@ -55,14 +63,25 @@ const addBox = (name, size, position, color, options = {}) => {
 };
 
 // Corridor shell: a narrow industrial lane running away from the player.
-addBox("floor", [3.6, 0.18, 22], [0, -1.55, -10.2], 0x273033, { roughness: 0.96 });
-addBox("ceiling", [3.6, 0.18, 22], [0, 1.72, -10.2], 0x171d1f, { roughness: 0.95 });
-addBox("left-wall", [0.2, 3.4, 22], [-1.72, 0.05, -10.2], 0x263033, { roughness: 0.93 });
-addBox("right-wall", [0.2, 3.4, 22], [1.72, 0.05, -10.2], 0x20282a, { roughness: 0.93 });
-addBox("far-wall", [3.6, 3.4, 0.2], [0, 0.05, -21.1], 0x141a1c);
+addBox("floor", [3.6, 0.18, 22], [0, -1.55, -10.2], 0x3b484a, { roughness: 0.96 });
+addBox("ceiling", [3.6, 0.18, 22], [0, 1.72, -10.2], 0x2a3436, { roughness: 0.95 });
+addBox("left-wall", [0.2, 3.4, 22], [-1.72, 0.05, -10.2], 0x3a484b, { roughness: 0.93 });
+addBox("right-wall", [0.2, 3.4, 22], [1.72, 0.05, -10.2], 0x323f42, { roughness: 0.93 });
+addBox("far-wall", [3.6, 3.4, 0.2], [0, 0.05, -21.1], 0x263235);
+addBox("entry-lamp", [1.15, 0.055, 0.3], [-0.7, 1.57, -1.3], 0xb8d8cf, {
+  emissive: 0xa7d8ca,
+  emissiveIntensity: 2.8,
+  roughness: 0.25,
+  castShadow: false
+});
+addBox("entry-floor-guide", [3.05, 0.015, 0.09], [0, -1.445, -1.85], 0x718b84, {
+  emissive: 0x405f59,
+  emissiveIntensity: 1.25,
+  castShadow: false
+});
 
 // Player-side cover. At rest the camera sits behind this slab, so the corridor is genuinely occluded.
-addBox("peek-cover", [2.7, 4.1, 0.32], [1.64, 0.08, 0.02], 0x495051, { roughness: 0.76 });
+addBox("peek-cover", [2.7, 4.1, 0.32], [1.64, 0.08, 0.02], 0x626d6e, { roughness: 0.76 });
 addBox("door-frame", [0.18, 4.1, 0.46], [0.24, 0.08, -0.02], 0x111719, { metalness: 0.45 });
 addBox("door-header", [3.6, 0.22, 0.46], [0, 1.74, -0.02], 0x111719, { metalness: 0.45 });
 addBox("cover-panel", [0.76, 0.62, 0.035], [0.86, 0.45, 0.205], 0x171c1d, { metalness: 0.3 });
@@ -89,64 +108,147 @@ addBox("crate-b", [0.62, 0.48, 0.72], [-0.48, -1.22, -9.25], 0x2b3431, { roughne
 addBox("barrier", [1.2, 0.72, 0.18], [0.65, -1.13, -14.1], 0x4a3026, { metalness: 0.22 });
 addBox("far-door", [1.16, 2.35, 0.12], [-0.34, -0.35, -20.94], 0x243034, { metalness: 0.48 });
 
-scene.add(new THREE.HemisphereLight(0x789894, 0x151a1a, 1.12));
-scene.add(new THREE.AmbientLight(0x3b4e4b, 0.68));
-const playerLight = new THREE.PointLight(0xc4ded7, 3.8, 3.2, 1.8);
+// A stationary opponent surrogate peeks over a low cover. The body remains hidden;
+// only the head and helmet are exposed, giving the center ray a readable target.
+const dummyCover = addBox("dummy-cover", [1.18, 1.62, 0.34], [0.35, -0.91, -18.18], 0x525d60, { metalness: 0.18 });
+dummyCover.userData.blocksShot = true;
+const dummyHeadMaterial = material(0xc18e70, { roughness: 0.84 });
+dummyHeadMaterial.emissive = new THREE.Color(0x000000);
+const dummyHead = new THREE.Mesh(new THREE.SphereGeometry(0.22, 24, 18), dummyHeadMaterial);
+dummyHead.name = "dummy-head";
+dummyHead.position.set(0.35, 0.01, -17.96);
+dummyHead.scale.set(0.88, 1.12, 0.92);
+dummyHead.castShadow = true;
+dummyHead.userData.isDummyHead = true;
+scene.add(dummyHead);
+const helmetMaterial = material(0x29383a, { roughness: 0.76, metalness: 0.16 });
+const dummyHelmet = new THREE.Mesh(new THREE.SphereGeometry(0.235, 24, 18, 0, Math.PI * 2, 0, Math.PI * 0.58), helmetMaterial);
+dummyHelmet.name = "dummy-helmet";
+dummyHelmet.position.set(0.35, 0.055, -17.96);
+dummyHelmet.scale.set(0.9, 0.94, 0.94);
+dummyHelmet.rotation.z = -0.08;
+dummyHelmet.castShadow = true;
+dummyHelmet.userData.isDummyHead = true;
+scene.add(dummyHelmet);
+
+scene.add(new THREE.HemisphereLight(0xafd8d1, 0x35403f, 1.95));
+scene.add(new THREE.AmbientLight(0x6e8b85, 1.28));
+const playerLight = new THREE.PointLight(0xd9eee9, 5.2, 4.2, 1.7);
 playerLight.position.set(0.7, 0.65, 0.86);
 scene.add(playerLight);
-const entranceLight = new THREE.PointLight(0xaccfc2, 6.2, 9, 2.1);
+const entranceLight = new THREE.PointLight(0xc8eee2, 8.6, 11, 1.9);
 entranceLight.position.set(-0.45, 1.05, -1.8);
 entranceLight.castShadow = true;
 scene.add(entranceLight);
-const warmLight = new THREE.PointLight(0xd37b45, 4.1, 8, 2.2);
+const warmLight = new THREE.PointLight(0xe4945d, 5.6, 9, 2);
 warmLight.position.set(0.75, 0.7, -10.8);
 scene.add(warmLight);
-const farLight = new THREE.PointLight(0x4e8a83, 5.4, 10, 2.1);
-farLight.position.set(-0.55, 0.9, -18.4);
+const farLight = new THREE.PointLight(0x72c5b9, 8.2, 11, 1.9);
+farLight.position.set(0.25, 0.85, -18.1);
 scene.add(farLight);
 
 const phaseText = {
-  hidden: "掩体后 · 通道不可见",
+  hidden: "掩体后 · 通道边缘可见",
   peeking: "探头中",
   holding: "完全探出 · 通道可见",
   returning: "缩回掩体"
 };
 
-const setHeld = (held) => {
-  peekState.setHeld(held || debugPeek);
-  peekButton.classList.toggle("is-held", held || debugPeek);
-  peekButton.setAttribute("aria-pressed", String(held || debugPeek));
+const syncPeekTarget = () => {
+  peekState.setHeld(aimInteraction.peekRequested() || debugPeek || debugAim);
 };
 
-let activePointerId = null;
-peekButton.addEventListener("pointerdown", (event) => {
+let isFiring = false;
+let activeFirePointerId = null;
+
+const stopFiring = () => {
+  isFiring = false;
+  activeFirePointerId = null;
+  fireButton.classList.remove("is-firing");
+  fireButton.setAttribute("aria-pressed", "false");
+};
+
+const syncControls = (snapshot = peekState.snapshot()) => {
+  const interaction = aimInteraction.snapshot();
+  const committed = interaction.committed || debugAim;
+  const fakeHeld = interaction.fakeHeld || debugPeek;
+  trueAimButton.classList.toggle("is-committed", committed);
+  trueAimButton.setAttribute("aria-pressed", String(committed));
+  trueAimButton.querySelector("small").textContent = committed ? "点击缩回" : "点击锁定";
+  fakePeekButton.classList.toggle("is-held", fakeHeld);
+  fakePeekButton.setAttribute("aria-pressed", String(fakeHeld));
+  fakePeekButton.disabled = committed;
+  fireButton.hidden = !committed;
+  fireButton.disabled = !committed;
+  fireButton.classList.toggle("is-armed", isFiring && snapshot.progress < 1);
+};
+
+trueAimButton.addEventListener("click", (event) => {
   event.preventDefault();
+  if (debugAim) return;
+  aimInteraction.toggleCommitted();
+  if (!aimInteraction.committed) stopFiring();
+  syncPeekTarget();
+  syncControls();
+});
+
+let activePointerId = null;
+fakePeekButton.addEventListener("pointerdown", (event) => {
+  event.preventDefault();
+  if (!aimInteraction.setFakeHeld(true)) return;
   activePointerId = event.pointerId;
-  setHeld(true);
-  try { peekButton.setPointerCapture(event.pointerId); } catch { /* document release remains authoritative */ }
+  syncPeekTarget();
+  syncControls();
+  try { fakePeekButton.setPointerCapture(event.pointerId); } catch { /* document release remains authoritative */ }
 });
 
 const releasePointer = (event) => {
   if (activePointerId === null || event.pointerId !== activePointerId) return;
   activePointerId = null;
-  setHeld(false);
+  aimInteraction.setFakeHeld(false);
+  syncPeekTarget();
+  syncControls();
 };
 document.addEventListener("pointerup", releasePointer, { passive: false });
 document.addEventListener("pointercancel", releasePointer, { passive: false });
-window.addEventListener("blur", () => { activePointerId = null; setHeld(false); });
+window.addEventListener("blur", () => {
+  activePointerId = null;
+  aimInteraction.releaseAll();
+  stopFiring();
+  syncPeekTarget();
+  syncControls();
+});
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden) { activePointerId = null; setHeld(false); }
+  if (!document.hidden) return;
+  activePointerId = null;
+  aimInteraction.releaseAll();
+  stopFiring();
+  syncPeekTarget();
+  syncControls();
 });
 
 window.addEventListener("keydown", (event) => {
-  if (event.code !== "Space" || event.repeat) return;
-  event.preventDefault();
-  setHeld(true);
+  if (event.repeat) return;
+  if (event.code === "Space") {
+    event.preventDefault();
+    if (aimInteraction.setFakeHeld(true)) {
+      syncPeekTarget();
+      syncControls();
+    }
+  }
+  if (event.code === "KeyE") {
+    event.preventDefault();
+    aimInteraction.toggleCommitted();
+    syncPeekTarget();
+    syncControls();
+  }
 });
 window.addEventListener("keyup", (event) => {
   if (event.code !== "Space") return;
   event.preventDefault();
-  setHeld(false);
+  aimInteraction.setFakeHeld(false);
+  syncPeekTarget();
+  syncControls();
 });
 
 const stopBrowserGesture = (event) => { if (event.cancelable) event.preventDefault(); };
@@ -154,12 +256,146 @@ for (const eventName of ["contextmenu", "selectstart", "dragstart", "dblclick", 
   document.addEventListener(eventName, stopBrowserGesture, { passive: false });
 }
 
+const raycaster = new THREE.Raycaster();
+const screenCenter = new THREE.Vector2(0, 0);
+const SHOT_INTERVAL_MS = 108;
+const AIM_YAW_LIMIT = 0.12;
+const AIM_PITCH_LIMIT = 0.14;
+const RECOIL_VERTICAL_PER_SHOT = 0.018;
+const RECOIL_HORIZONTAL_PER_SHOT = 0.012;
+let lastShotTime = -Infinity;
+let aimYaw = 0;
+let aimPitch = 0;
+let recoilYaw = 0;
+let recoilPitch = 0;
+let lastFirePointerX = 0;
+let lastFirePointerY = 0;
+
+const playShotSound = () => {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return;
+  const audioContext = new AudioContextClass();
+  const oscillator = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+  oscillator.type = "square";
+  oscillator.frequency.setValueAtTime(105, audioContext.currentTime);
+  oscillator.frequency.exponentialRampToValueAtTime(42, audioContext.currentTime + 0.07);
+  gain.gain.setValueAtTime(0.12, audioContext.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.08);
+  oscillator.connect(gain).connect(audioContext.destination);
+  oscillator.start();
+  oscillator.stop(audioContext.currentTime + 0.08);
+  oscillator.addEventListener("ended", () => audioContext.close());
+};
+
+const showShotFeedback = (label) => {
+  shotFlash.classList.remove("is-firing");
+  shotResult.classList.remove("is-visible");
+  void shotFlash.offsetWidth;
+  shotFlash.classList.add("is-firing");
+  shotResult.textContent = label;
+  shotResult.classList.add("is-visible");
+};
+
+const addTracer = (start, end, color) => {
+  const geometry = new THREE.BufferGeometry().setFromPoints([start, end]);
+  const tracer = new THREE.Line(geometry, new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.95 }));
+  tracer.name = "shot-tracer";
+  tracer.renderOrder = 20;
+  scene.add(tracer);
+  window.setTimeout(() => {
+    scene.remove(tracer);
+    geometry.dispose();
+    tracer.material.dispose();
+  }, 120);
+};
+
+const fireAtReticle = () => {
+  const snapshot = peekState.snapshot();
+  if (!(aimInteraction.canFire(snapshot.progress) || (debugAim && snapshot.progress >= 1))) return;
+  const now = performance.now();
+  if (now - lastShotTime < SHOT_INTERVAL_MS) return;
+  lastShotTime = now;
+
+  recoilPitch = Math.min(0.09, recoilPitch + RECOIL_VERTICAL_PER_SHOT);
+  recoilYaw = THREE.MathUtils.clamp(
+    recoilYaw + (Math.random() * 2 - 1) * RECOIL_HORIZONTAL_PER_SHOT,
+    -0.045,
+    0.045
+  );
+
+  raycaster.setFromCamera(screenCenter, camera);
+  const intersections = raycaster.intersectObjects(scene.children, true)
+    .filter((hit) => hit.object.name !== "shot-tracer");
+  const firstHit = intersections[0];
+  const origin = raycaster.ray.origin.clone().add(raycaster.ray.direction.clone().multiplyScalar(0.35));
+  const end = firstHit ? firstHit.point.clone() : raycaster.ray.at(24, new THREE.Vector3());
+  const isHeadshot = Boolean(firstHit?.object.userData.isDummyHead);
+
+  addTracer(origin, end, isHeadshot ? 0xffe49b : 0xff9c55);
+  showShotFeedback(isHeadshot ? "命中假人头部" : "射线落点");
+  playShotSound();
+
+  if (isHeadshot) {
+    const hitMaterial = firstHit.object.material;
+    hitMaterial.emissive.setHex(0xff571f);
+    hitMaterial.emissiveIntensity = 2.6;
+    window.setTimeout(() => {
+      hitMaterial.emissive.setHex(0x000000);
+      hitMaterial.emissiveIntensity = 0;
+    }, 110);
+  }
+};
+
+fireButton.addEventListener("pointerdown", (event) => {
+  event.preventDefault();
+  if (!(aimInteraction.committed || debugAim)) return;
+  activeFirePointerId = event.pointerId;
+  lastFirePointerX = event.clientX;
+  lastFirePointerY = event.clientY;
+  isFiring = true;
+  fireButton.classList.add("is-firing");
+  fireButton.setAttribute("aria-pressed", "true");
+  try { fireButton.setPointerCapture(event.pointerId); } catch { /* document release remains authoritative */ }
+  fireAtReticle();
+});
+const releaseFirePointer = (event) => {
+  if (activeFirePointerId === null || event.pointerId !== activeFirePointerId) return;
+  stopFiring();
+};
+document.addEventListener("pointerup", releaseFirePointer, { passive: false });
+document.addEventListener("pointercancel", releaseFirePointer, { passive: false });
+document.addEventListener("pointermove", (event) => {
+  if (activeFirePointerId === null || event.pointerId !== activeFirePointerId) return;
+  event.preventDefault();
+  const deltaX = event.clientX - lastFirePointerX;
+  const deltaY = event.clientY - lastFirePointerY;
+  lastFirePointerX = event.clientX;
+  lastFirePointerY = event.clientY;
+  aimYaw = THREE.MathUtils.clamp(aimYaw - deltaX / Math.max(1, window.innerWidth) * 0.48, -AIM_YAW_LIMIT, AIM_YAW_LIMIT);
+  aimPitch = THREE.MathUtils.clamp(aimPitch - deltaY / Math.max(1, window.innerHeight) * 0.9, -AIM_PITCH_LIMIT, AIM_PITCH_LIMIT);
+}, { passive: false });
+window.addEventListener("keydown", (event) => {
+  if (event.code !== "KeyF" || event.repeat) return;
+  event.preventDefault();
+  if (!(aimInteraction.committed || debugAim)) return;
+  isFiring = true;
+  fireButton.classList.add("is-firing");
+  fireButton.setAttribute("aria-pressed", "true");
+  fireAtReticle();
+});
+window.addEventListener("keyup", (event) => {
+  if (event.code !== "KeyF") return;
+  event.preventDefault();
+  stopFiring();
+});
+
 const renderFallback = (progress, roll) => {
   if (!fallbackContext) return;
   const context = fallbackContext;
   const width = canvas.width;
   const height = canvas.height;
-  const reveal = width * Math.pow(progress, 1.45) * 0.83;
+  const reveal = width * (0.07 + Math.pow(progress, 1.45) * 0.76);
   const horizonY = height * 0.43;
   const floorY = height * 0.81;
   context.save();
@@ -173,13 +409,13 @@ const renderFallback = (progress, roll) => {
   context.rect(-width * 0.1, 0, reveal + width * 0.1, height);
   context.clip();
   const corridor = context.createLinearGradient(0, 0, 0, height);
-  corridor.addColorStop(0, "#142123");
-  corridor.addColorStop(0.52, "#0c1618");
-  corridor.addColorStop(1, "#1d292a");
+  corridor.addColorStop(0, "#2a3b3e");
+  corridor.addColorStop(0.52, "#1a2a2d");
+  corridor.addColorStop(1, "#35474a");
   context.fillStyle = corridor;
   context.fillRect(0, 0, width, height);
 
-  context.fillStyle = "#1f2b2d";
+  context.fillStyle = "#344548";
   context.beginPath();
   context.moveTo(0, 0);
   context.lineTo(width * 0.49, horizonY);
@@ -187,7 +423,7 @@ const renderFallback = (progress, roll) => {
   context.lineTo(0, height);
   context.closePath();
   context.fill();
-  context.fillStyle = "#11191b";
+  context.fillStyle = "#233235";
   context.beginPath();
   context.moveTo(width, 0);
   context.lineTo(width * 0.55, horizonY);
@@ -195,7 +431,7 @@ const renderFallback = (progress, roll) => {
   context.lineTo(width, height);
   context.closePath();
   context.fill();
-  context.fillStyle = "#0a1112";
+  context.fillStyle = "#172326";
   context.fillRect(width * 0.49, horizonY, width * 0.06, floorY - horizonY);
 
   for (let index = 0; index < 7; index += 1) {
@@ -223,12 +459,18 @@ const renderFallback = (progress, roll) => {
   context.fillRect(width * 0.2, height * 0.62, width * 0.15, height * 0.1);
   context.fillStyle = "#53372a";
   context.fillRect(width * 0.59, height * 0.57, width * 0.18, height * 0.09);
+  context.fillStyle = "#596568";
+  context.fillRect(width * 0.48, height * 0.48, width * 0.1, height * 0.08);
+  context.fillStyle = "#c18e70";
+  context.beginPath();
+  context.arc(width * 0.53, height * 0.47, width * 0.018, 0, Math.PI * 2);
+  context.fill();
   context.restore();
 
   const wallGradient = context.createLinearGradient(reveal, 0, width, height);
-  wallGradient.addColorStop(0, "#171c1d");
-  wallGradient.addColorStop(0.08, "#303638");
-  wallGradient.addColorStop(1, "#202526");
+  wallGradient.addColorStop(0, "#293133");
+  wallGradient.addColorStop(0.08, "#4a5355");
+  wallGradient.addColorStop(1, "#343c3e");
   context.fillStyle = wallGradient;
   context.fillRect(reveal, -height * 0.1, width * 1.2, height * 1.2);
   context.fillStyle = "rgba(7,10,10,.72)";
@@ -255,22 +497,36 @@ const resize = () => {
 window.addEventListener("resize", resize, { passive: true });
 resize();
 
-if (debugPeek) setHeld(true);
+if (debugAim) aimInteraction.toggleCommitted();
+if (debugPeek && !debugAim) aimInteraction.setFakeHeld(true);
+syncPeekTarget();
+syncControls();
 
 let previousTime = performance.now();
 const animate = (time) => {
   const deltaMs = Math.min(250, time - previousTime);
   previousTime = time;
   const snapshot = peekState.step(deltaMs);
+  const recoilDecay = Math.exp(-deltaMs / 230);
+  recoilPitch *= recoilDecay;
+  recoilYaw *= recoilDecay;
   const breathing = snapshot.progress > 0.98 ? Math.sin(time * 0.0025) * 0.006 : 0;
   camera.position.set(snapshot.pose.x, snapshot.pose.y + breathing, snapshot.pose.z);
-  camera.rotation.set(0, snapshot.pose.yaw, snapshot.pose.roll);
+  camera.rotation.set(aimPitch + recoilPitch, snapshot.pose.yaw + aimYaw + recoilYaw, snapshot.pose.roll);
 
   document.documentElement.style.setProperty("--peek-progress", snapshot.progress.toFixed(4));
-  stateLabel.textContent = phaseText[snapshot.phase];
+  const mode = debugAim ? "committed" : debugPeek ? "fake" : aimInteraction.mode();
+  if (mode === "committed") {
+    stateLabel.textContent = snapshot.progress >= 1 ? "真架枪 · 按住射击 / 拖动压枪" : isFiring ? "真架枪 · 已预备开火" : "真架枪 · 自动探出中";
+  } else if (mode === "fake") {
+    stateLabel.textContent = snapshot.progress >= 1 ? "假动作 · 完全探出" : "假动作 · 探头中";
+  } else {
+    stateLabel.textContent = phaseText[snapshot.phase];
+  }
   progressFill.style.transform = `scaleX(${snapshot.progress.toFixed(4)})`;
   reticle.style.opacity = String(Math.max(0, (snapshot.progress - 0.55) / 0.45));
-  peekButton.querySelector("small").textContent = snapshot.held ? "松开缩回" : "按住不放";
+  syncControls(snapshot);
+  if (isFiring) fireAtReticle();
 
   if (renderer) renderer.render(scene, camera);
   else renderFallback(snapshot.progress, snapshot.pose.roll);
