@@ -8,6 +8,7 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 const html = readFileSync(join(root, "index.html"), "utf8");
 const styles = readFileSync(join(root, "styles.css"), "utf8");
 const scene = readFileSync(join(root, "src", "peek-scene.js"), "utf8");
+const enemyIntel = readFileSync(join(root, "src", "enemy-intel.js"), "utf8");
 const recoilProfile = readFileSync(join(root, "src", "recoil-profile.js"), "utf8");
 const server = readFileSync(join(root, "server.mjs"), "utf8");
 const packageJson = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
@@ -29,6 +30,9 @@ test("prototype exposes separate true aim, fake action, and contextual fire cont
   assert.match(html, /id="trueAimControl"/);
   assert.match(html, /id="fakePeekControl"/);
   assert.match(html, /id="fireControl"/);
+  assert.match(html, /id="aimSurface"/);
+  assert.match(html, /id="intelState">没有敌人信息/);
+  assert.match(html, /id="visibilityLabel"/);
   assert.match(html, /<script src="peek-app\.js"><\/script>/);
   assert.match(html, /真架枪点击锁定/);
   assert.match(html, /假动作按住探头/);
@@ -50,6 +54,20 @@ test("three dimensional corridor and real cover geometry are created", () => {
   assert.match(scene, /"far-wall"/);
   assert.match(scene, /"dummy-head"/);
   assert.match(scene, /"dummy-cover"/);
+  assert.match(scene, /"dummy-torso"/);
+  assert.match(scene, /"dummy-left-leg"/);
+  assert.match(scene, /applyEnemyPosition/);
+});
+
+test("fake peek intel uses sampled visibility and five hidden relocation positions", () => {
+  assert.match(enemyIntel, /ENEMY_VISIBILITY_THRESHOLD = 0\.1/);
+  assert.equal((enemyIntel.match(/id:\s*"/g) ?? []).length, 5);
+  assert.match(scene, /ENEMY_VISIBILITY_SAMPLES/);
+  assert.match(scene, /calculateEnemyVisibility\(\)/);
+  assert.match(scene, /enemyIntel\.observeFakePeek\(enemyVisibility\)/);
+  assert.match(scene, /enemyIntel\.resolveHiddenReposition\(\)/);
+  assert.match(scene, /enemyIntel\.consumePendingAutoAim\(\)/);
+  assert.match(scene, /applyPreAimToPosition\(preAimPositionIndex\)/);
 });
 
 test("fake action holds peek while true aim latches and unlocks center-ray fire", () => {
@@ -68,6 +86,10 @@ test("fake action holds peek while true aim latches and unlocks center-ray fire"
   assert.match(scene, /document\.addEventListener\("pointerup", releaseFirePointer/);
   assert.match(scene, /document\.addEventListener\("pointercancel", releaseFirePointer/);
   assert.match(scene, /document\.addEventListener\("pointermove"/);
+  assert.match(scene, /aimSurface\.addEventListener\("pointerdown"/);
+  assert.match(scene, /activeAimPointerId/);
+  assert.match(scene, /applyAimDelta/);
+  assert.match(styles, /\.app\.is-aiming \.aim-surface\s*\{\s*pointer-events:\s*auto/);
   assert.match(scene, /aimYaw = THREE\.MathUtils\.clamp/);
   assert.match(scene, /aimPitch = THREE\.MathUtils\.clamp/);
   assert.match(recoilProfile, /shotIntervalMs:\s*108/);
@@ -89,7 +111,7 @@ test("first-shot hot path reuses audio and tracer resources without forced layou
   assert.match(scene, /audioContext\.createBufferSource\(\)/);
   assert.match(scene, /const tracerPositions = new Float32Array\(6\)/);
   assert.match(scene, /tracerGeometry\.attributes\.position\.needsUpdate = true/);
-  assert.match(scene, /raycaster\.intersectObjects\(shotTargets, false\)/);
+  assert.match(scene, /raycaster\.intersectObjects\(activeShotTargets, false\)/);
   assert.match(scene, /firstShotDeferred = true/);
   assert.match(scene, /shotFlash\.animate/);
   assert.doesNotMatch(scene, /offsetWidth|geometry\.dispose\(\)|material\.dispose\(\)/);

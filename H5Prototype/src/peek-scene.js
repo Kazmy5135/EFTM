@@ -1,15 +1,20 @@
 import * as THREE from "three";
-import { PeekState } from "./peek-state.js";
+import { PEEK_CONFIG, PeekState } from "./peek-state.js";
 import { AimInteraction } from "./aim-interaction.js";
+import { ENEMY_POSITIONS, ENEMY_VISIBILITY_THRESHOLD, EnemyIntel } from "./enemy-intel.js";
 import { RECOIL_PROFILE, recoilImpulseForShot, recoilPhaseForShot } from "./recoil-profile.js";
 
+const app = document.querySelector("#app");
 const canvas = document.querySelector("#sceneCanvas");
+const aimSurface = document.querySelector("#aimSurface");
 const trueAimButton = document.querySelector("#trueAimControl");
 const fakePeekButton = document.querySelector("#fakePeekControl");
 const fireButton = document.querySelector("#fireControl");
 const stateLabel = document.querySelector("#stateLabel");
 const progressFill = document.querySelector("#peekProgressFill");
 const reticle = document.querySelector("#reticle");
+const intelState = document.querySelector("#intelState");
+const visibilityLabel = document.querySelector("#visibilityLabel");
 const shotFlash = document.querySelector("#shotFlash");
 const shotResult = document.querySelector("#shotResult");
 const unsupported = document.querySelector("#unsupported");
@@ -18,6 +23,11 @@ const debugPeek = debugParams.get("debugPeek") === "1";
 const debugAim = debugParams.get("debugAim") === "1";
 const peekState = new PeekState();
 const aimInteraction = new AimInteraction();
+const enemyIntel = new EnemyIntel();
+const debugEnemyPosition = Number(debugParams.get("enemyPos"));
+if (Number.isInteger(debugEnemyPosition) && debugEnemyPosition >= 0 && debugEnemyPosition < ENEMY_POSITIONS.length) {
+  enemyIntel.currentPositionIndex = debugEnemyPosition;
+}
 
 let renderer = null;
 let fallbackContext = null;
@@ -111,30 +121,85 @@ addBox("crate-b", [0.62, 0.48, 0.72], [-0.48, -1.22, -9.25], 0x2b3431, { roughne
 addBox("barrier", [1.2, 0.72, 0.18], [0.65, -1.13, -14.1], 0x4a3026, { metalness: 0.22, shotTarget: true });
 addBox("far-door", [1.16, 2.35, 0.12], [-0.34, -0.35, -20.94], 0x243034, { metalness: 0.48, shotTarget: true });
 
-// A stationary opponent surrogate peeks over a low cover. The body remains hidden;
-// only the head and helmet are exposed, giving the center ray a readable target.
-const dummyCover = addBox("dummy-cover", [1.18, 1.62, 0.34], [0.35, -0.91, -18.18], 0x525d60, { metalness: 0.18, shotTarget: true });
+// The opponent surrogate can occupy five far-corridor positions with different
+// exposure profiles. Occlusion, not a UI shortcut, determines fake-peek intel.
+const dummyCover = addBox("dummy-cover", [1, 1, 1], [0, -0.9, -18], 0x525d60, { metalness: 0.18, shotTarget: true });
 dummyCover.userData.blocksShot = true;
+const enemyActor = new THREE.Group();
+enemyActor.name = "enemy-actor";
+scene.add(enemyActor);
 const dummyHeadMaterial = material(0xc18e70, { roughness: 0.84 });
 dummyHeadMaterial.emissive = new THREE.Color(0x000000);
 const dummyHead = new THREE.Mesh(new THREE.SphereGeometry(0.22, 24, 18), dummyHeadMaterial);
 dummyHead.name = "dummy-head";
-dummyHead.position.set(0.35, 0.01, -17.96);
+dummyHead.position.set(0, 0, 0);
 dummyHead.scale.set(0.88, 1.12, 0.92);
 dummyHead.castShadow = true;
 dummyHead.userData.isDummyHead = true;
-scene.add(dummyHead);
+dummyHead.userData.isEnemyPart = true;
+enemyActor.add(dummyHead);
 shotTargets.push(dummyHead);
 const helmetMaterial = material(0x29383a, { roughness: 0.76, metalness: 0.16 });
 const dummyHelmet = new THREE.Mesh(new THREE.SphereGeometry(0.235, 24, 18, 0, Math.PI * 2, 0, Math.PI * 0.58), helmetMaterial);
 dummyHelmet.name = "dummy-helmet";
-dummyHelmet.position.set(0.35, 0.055, -17.96);
+dummyHelmet.position.set(0, 0.045, 0);
 dummyHelmet.scale.set(0.9, 0.94, 0.94);
 dummyHelmet.rotation.z = -0.08;
 dummyHelmet.castShadow = true;
 dummyHelmet.userData.isDummyHead = true;
-scene.add(dummyHelmet);
+dummyHelmet.userData.isEnemyPart = true;
+enemyActor.add(dummyHelmet);
 shotTargets.push(dummyHelmet);
+
+const uniformMaterial = material(0x405052, { roughness: 0.88 });
+const webbingMaterial = material(0x252f30, { roughness: 0.93 });
+const addEnemyPart = (name, size, position, partMaterial = uniformMaterial) => {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(size[0], size[1], size[2]), partMaterial);
+  mesh.name = name;
+  mesh.position.set(position[0], position[1], position[2]);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.userData.isEnemyPart = true;
+  enemyActor.add(mesh);
+  shotTargets.push(mesh);
+  return mesh;
+};
+addEnemyPart("dummy-neck", [0.16, 0.16, 0.14], [0, -0.22, 0.01], dummyHeadMaterial);
+addEnemyPart("dummy-torso", [0.58, 0.68, 0.28], [0, -0.58, 0.03]);
+addEnemyPart("dummy-vest", [0.48, 0.42, 0.32], [0, -0.53, 0.01], webbingMaterial);
+addEnemyPart("dummy-left-arm", [0.17, 0.68, 0.18], [-0.37, -0.58, 0.04]);
+addEnemyPart("dummy-right-arm", [0.17, 0.68, 0.18], [0.37, -0.58, 0.04]);
+addEnemyPart("dummy-pelvis", [0.48, 0.3, 0.25], [0, -1.02, 0.04], webbingMaterial);
+addEnemyPart("dummy-left-leg", [0.2, 0.64, 0.22], [-0.15, -1.34, 0.04]);
+addEnemyPart("dummy-right-leg", [0.2, 0.64, 0.22], [0.15, -1.34, 0.04]);
+
+const ENEMY_VISIBILITY_SAMPLES = Object.freeze([
+  [-0.12, 0.08, 0], [0, 0.12, 0], [0.12, 0.08, 0],
+  [-0.3, -0.32, 0], [0.3, -0.32, 0],
+  [-0.2, -0.52, 0], [0, -0.48, 0], [0.2, -0.52, 0],
+  [-0.36, -0.66, 0], [0.36, -0.66, 0],
+  [-0.2, -0.82, 0], [0, -0.82, 0], [0.2, -0.82, 0],
+  [-0.16, -1.08, 0], [0.16, -1.08, 0],
+  [-0.16, -1.28, 0], [0.16, -1.28, 0],
+  [-0.16, -1.48, 0], [0, -1.48, 0], [0.16, -1.48, 0]
+]);
+
+let activeShotTargets = [];
+let activeVisibilityOccluders = [];
+const applyEnemyPosition = (positionIndex) => {
+  const position = ENEMY_POSITIONS[positionIndex];
+  enemyActor.position.set(position.actor[0], position.actor[1], position.actor[2]);
+  if (position.cover && position.coverSize) {
+    dummyCover.visible = true;
+    dummyCover.position.set(position.cover[0], position.cover[1], position.cover[2]);
+    dummyCover.scale.set(position.coverSize[0], position.coverSize[1], position.coverSize[2]);
+  } else {
+    dummyCover.visible = false;
+  }
+  activeShotTargets = shotTargets.filter((target) => target.visible);
+  activeVisibilityOccluders = activeShotTargets.filter((target) => !target.userData.isEnemyPart);
+};
+applyEnemyPosition(enemyIntel.currentPositionIndex);
 
 scene.add(new THREE.HemisphereLight(0xafd8d1, 0x35403f, 1.95));
 scene.add(new THREE.AmbientLight(0x6e8b85, 1.28));
@@ -192,6 +257,10 @@ const syncControls = (snapshot = peekState.snapshot()) => {
   fireButton.hidden = !committed;
   fireButton.disabled = !committed;
   fireButton.classList.toggle("is-armed", isFiring && snapshot.progress < 1);
+  app.classList.toggle("is-aiming", committed);
+  intelState.textContent = enemyIntel.intelLabel();
+  intelState.classList.toggle("has-intel", enemyIntel.rememberedPositionIndex !== null);
+  reticle.classList.toggle("is-preaimed", enemyIntel.rememberedPositionIndex !== null);
 };
 
 trueAimButton.addEventListener("click", (event) => {
@@ -199,7 +268,12 @@ trueAimButton.addEventListener("click", (event) => {
   ensureAudioReady();
   if (debugAim) return;
   aimInteraction.toggleCommitted();
-  if (!aimInteraction.committed) stopFiring();
+  if (aimInteraction.committed) {
+    const preAimPositionIndex = enemyIntel.consumePendingAutoAim();
+    if (preAimPositionIndex !== null) applyPreAimToPosition(preAimPositionIndex);
+  } else {
+    stopFiring();
+  }
   syncPeekTarget();
   syncControls();
 });
@@ -225,6 +299,7 @@ document.addEventListener("pointerup", releasePointer, { passive: false });
 document.addEventListener("pointercancel", releasePointer, { passive: false });
 window.addEventListener("blur", () => {
   activePointerId = null;
+  activeAimPointerId = null;
   aimInteraction.releaseAll();
   stopFiring();
   syncPeekTarget();
@@ -233,6 +308,7 @@ window.addEventListener("blur", () => {
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) return;
   activePointerId = null;
+  activeAimPointerId = null;
   aimInteraction.releaseAll();
   stopFiring();
   syncPeekTarget();
@@ -251,7 +327,12 @@ window.addEventListener("keydown", (event) => {
   if (event.code === "KeyE") {
     event.preventDefault();
     aimInteraction.toggleCommitted();
-    if (!aimInteraction.committed) stopFiring();
+    if (aimInteraction.committed) {
+      const preAimPositionIndex = enemyIntel.consumePendingAutoAim();
+      if (preAimPositionIndex !== null) applyPreAimToPosition(preAimPositionIndex);
+    } else {
+      stopFiring();
+    }
     syncPeekTarget();
     syncControls();
   }
@@ -270,7 +351,11 @@ for (const eventName of ["contextmenu", "selectstart", "dragstart", "dblclick", 
 }
 
 const raycaster = new THREE.Raycaster();
+const visibilityRaycaster = new THREE.Raycaster();
 const screenCenter = new THREE.Vector2(0, 0);
+const sampleWorldPoint = new THREE.Vector3();
+const sampleProjectedPoint = new THREE.Vector3();
+const sampleDirection = new THREE.Vector3();
 const AIM_YAW_LIMIT = 0.12;
 const AIM_PITCH_LIMIT = 0.14;
 let lastShotTime = -Infinity;
@@ -280,6 +365,50 @@ let recoilYaw = 0;
 let recoilPitch = 0;
 let lastFirePointerX = 0;
 let lastFirePointerY = 0;
+let activeAimPointerId = null;
+let lastAimSurfaceX = 0;
+let lastAimSurfaceY = 0;
+
+const applyAimDelta = (deltaX, deltaY) => {
+  aimYaw = THREE.MathUtils.clamp(aimYaw - deltaX / Math.max(1, window.innerWidth) * 0.48, -AIM_YAW_LIMIT, AIM_YAW_LIMIT);
+  aimPitch = THREE.MathUtils.clamp(aimPitch - deltaY / Math.max(1, window.innerHeight) * 0.9, -AIM_PITCH_LIMIT, AIM_PITCH_LIMIT);
+};
+
+const applyPreAimToPosition = (positionIndex) => {
+  const position = ENEMY_POSITIONS[positionIndex];
+  const deltaX = position.actor[0] - PEEK_CONFIG.exposedX;
+  const deltaY = position.actor[1] - PEEK_CONFIG.exposedY;
+  const deltaZ = position.actor[2] - PEEK_CONFIG.exposedZ;
+  const horizontalDistance = Math.hypot(deltaX, deltaZ);
+  const desiredYaw = Math.atan2(-deltaX, -deltaZ);
+  const desiredPitch = Math.atan2(deltaY, horizontalDistance);
+  aimYaw = THREE.MathUtils.clamp(desiredYaw - PEEK_CONFIG.exposedYaw, -AIM_YAW_LIMIT, AIM_YAW_LIMIT);
+  aimPitch = THREE.MathUtils.clamp(desiredPitch, -AIM_PITCH_LIMIT, AIM_PITCH_LIMIT);
+  recoilYaw = 0;
+  recoilPitch = 0;
+};
+
+const calculateEnemyVisibility = () => {
+  camera.updateMatrixWorld();
+  enemyActor.updateWorldMatrix(true, false);
+  let visibleSamples = 0;
+
+  for (const sample of ENEMY_VISIBILITY_SAMPLES) {
+    sampleWorldPoint.set(sample[0], sample[1], sample[2]);
+    enemyActor.localToWorld(sampleWorldPoint);
+    sampleProjectedPoint.copy(sampleWorldPoint).project(camera);
+    if (Math.abs(sampleProjectedPoint.x) > 1 || Math.abs(sampleProjectedPoint.y) > 1 || sampleProjectedPoint.z < -1 || sampleProjectedPoint.z > 1) continue;
+
+    sampleDirection.copy(sampleWorldPoint).sub(camera.position);
+    const sampleDistance = sampleDirection.length();
+    sampleDirection.normalize();
+    visibilityRaycaster.set(camera.position, sampleDirection);
+    visibilityRaycaster.far = Math.max(0.01, sampleDistance - 0.025);
+    if (visibilityRaycaster.intersectObjects(activeVisibilityOccluders, false).length === 0) visibleSamples += 1;
+  }
+
+  return visibleSamples / ENEMY_VISIBILITY_SAMPLES.length;
+};
 
 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
 let shotAudioContext = null;
@@ -392,14 +521,15 @@ const fireAtReticle = () => {
   );
 
   raycaster.setFromCamera(screenCenter, camera);
-  const intersections = raycaster.intersectObjects(shotTargets, false);
+  const intersections = raycaster.intersectObjects(activeShotTargets, false);
   const firstHit = intersections[0];
   const origin = raycaster.ray.origin.clone().add(raycaster.ray.direction.clone().multiplyScalar(0.35));
   const end = firstHit ? firstHit.point.clone() : raycaster.ray.at(24, new THREE.Vector3());
   const isHeadshot = Boolean(firstHit?.object.userData.isDummyHead);
+  const isBodyshot = Boolean(firstHit?.object.userData.isEnemyPart && !isHeadshot);
 
-  addTracer(origin, end, isHeadshot ? 0xffe49b : 0xff9c55);
-  showShotFeedback(isHeadshot ? "命中假人头部" : "射线落点");
+  addTracer(origin, end, isHeadshot ? 0xffe49b : isBodyshot ? 0xffc071 : 0xff9c55);
+  showShotFeedback(isHeadshot ? "命中假人头部" : isBodyshot ? "命中假人身体" : "射线落点");
   playShotSound();
 
   if (isHeadshot) {
@@ -430,15 +560,37 @@ const releaseFirePointer = (event) => {
 };
 document.addEventListener("pointerup", releaseFirePointer, { passive: false });
 document.addEventListener("pointercancel", releaseFirePointer, { passive: false });
-document.addEventListener("pointermove", (event) => {
-  if (activeFirePointerId === null || event.pointerId !== activeFirePointerId) return;
+
+aimSurface.addEventListener("pointerdown", (event) => {
+  if (!aimInteraction.committed) return;
   event.preventDefault();
-  const deltaX = event.clientX - lastFirePointerX;
-  const deltaY = event.clientY - lastFirePointerY;
-  lastFirePointerX = event.clientX;
-  lastFirePointerY = event.clientY;
-  aimYaw = THREE.MathUtils.clamp(aimYaw - deltaX / Math.max(1, window.innerWidth) * 0.48, -AIM_YAW_LIMIT, AIM_YAW_LIMIT);
-  aimPitch = THREE.MathUtils.clamp(aimPitch - deltaY / Math.max(1, window.innerHeight) * 0.9, -AIM_PITCH_LIMIT, AIM_PITCH_LIMIT);
+  activeAimPointerId = event.pointerId;
+  lastAimSurfaceX = event.clientX;
+  lastAimSurfaceY = event.clientY;
+  try { aimSurface.setPointerCapture(event.pointerId); } catch { /* document release remains authoritative */ }
+});
+
+const releaseAimPointer = (event) => {
+  if (activeAimPointerId === null || event.pointerId !== activeAimPointerId) return;
+  activeAimPointerId = null;
+};
+document.addEventListener("pointerup", releaseAimPointer, { passive: false });
+document.addEventListener("pointercancel", releaseAimPointer, { passive: false });
+
+document.addEventListener("pointermove", (event) => {
+  if (activeFirePointerId !== null && event.pointerId === activeFirePointerId) {
+    event.preventDefault();
+    applyAimDelta(event.clientX - lastFirePointerX, event.clientY - lastFirePointerY);
+    lastFirePointerX = event.clientX;
+    lastFirePointerY = event.clientY;
+    return;
+  }
+  if (activeAimPointerId !== null && event.pointerId === activeAimPointerId) {
+    event.preventDefault();
+    applyAimDelta(event.clientX - lastAimSurfaceX, event.clientY - lastAimSurfaceY);
+    lastAimSurfaceX = event.clientX;
+    lastAimSurfaceY = event.clientY;
+  }
 }, { passive: false });
 window.addEventListener("keydown", (event) => {
   if (event.code !== "KeyF" || event.repeat) return;
@@ -567,6 +719,7 @@ syncPeekTarget();
 syncControls();
 
 let previousTime = performance.now();
+let peekCycleActive = false;
 const animate = (time) => {
   const deltaMs = Math.min(250, time - previousTime);
   previousTime = time;
@@ -580,6 +733,22 @@ const animate = (time) => {
 
   document.documentElement.style.setProperty("--peek-progress", snapshot.progress.toFixed(4));
   const mode = debugAim ? "committed" : debugPeek ? "fake" : aimInteraction.mode();
+  let enemyVisibility = 0;
+  if (mode === "fake" && snapshot.progress > 0) {
+    enemyVisibility = calculateEnemyVisibility();
+    enemyIntel.observeFakePeek(enemyVisibility);
+  }
+  visibilityLabel.textContent = mode === "fake"
+    ? `可见 ${Math.round(enemyVisibility * 100)}% / 阈值 ${Math.round(ENEMY_VISIBILITY_THRESHOLD * 100)}%`
+    : "";
+
+  if (snapshot.progress > 0.001) peekCycleActive = true;
+  if (peekCycleActive && snapshot.progress <= 0) {
+    const nextPositionIndex = enemyIntel.resolveHiddenReposition();
+    applyEnemyPosition(nextPositionIndex);
+    peekCycleActive = false;
+  }
+
   if (mode === "committed") {
     if (snapshot.progress < 1) {
       stateLabel.textContent = isFiring ? "真架枪 · 已预备开火" : "真架枪 · 自动探出中";
@@ -602,6 +771,13 @@ const animate = (time) => {
   reticle.style.opacity = String(Math.max(0, (snapshot.progress - 0.55) / 0.45));
   document.documentElement.dataset.recoilPhase = burstShotCount === 0 ? "idle" : recoilPhaseForShot(burstShotCount);
   document.documentElement.dataset.burstShots = String(burstShotCount);
+  document.documentElement.dataset.enemyVisibility = enemyVisibility.toFixed(3);
+  document.documentElement.dataset.enemyPosition = String(enemyIntel.currentPositionIndex);
+  document.documentElement.dataset.rememberedEnemyPosition = enemyIntel.rememberedPositionIndex === null ? "none" : String(enemyIntel.rememberedPositionIndex);
+  document.documentElement.dataset.pendingAutoAim = String(enemyIntel.pendingAutoAim);
+  document.documentElement.dataset.enemyMoved = String(enemyIntel.lastMoveChanged);
+  document.documentElement.dataset.aimYaw = aimYaw.toFixed(5);
+  document.documentElement.dataset.aimPitch = aimPitch.toFixed(5);
   syncControls(snapshot);
 
   if (renderer) renderer.render(scene, camera);

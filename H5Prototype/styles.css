@@ -41,10 +41,14 @@ button, canvas { -webkit-tap-highlight-color: transparent; }
 .top-hud h1 { margin-top: .7vh; color: #eff8f4; font-size: clamp(20px, 2.85vh, 58px); line-height: 1; letter-spacing: .04em; text-shadow: 0 .3vh 1.6vh #000; }
 .prototype-badge { padding: .8vh 2.8%; color: #b9cbc6; border: 1px solid rgba(172,209,199,.35); border-radius: 4vh; background: rgba(8,15,16,.7); font-size: clamp(8px, 1vh, 21px); letter-spacing: .1em; backdrop-filter: blur(8px); }
 
-.state-panel { position: absolute; z-index: 5; top: 10.5%; left: 5.5%; right: 5.5%; min-height: 6vh; padding: 1.15vh 4%; display: flex; align-items: center; gap: 3%; border: 1px solid rgba(176,209,198,.16); border-radius: 1.2vh; background: rgba(5,11,12,.72); box-shadow: 0 1vh 3vh rgba(0,0,0,.26); backdrop-filter: blur(9px); pointer-events: none; }
+.state-panel { position: absolute; z-index: 5; top: 10.5%; left: 5.5%; right: 5.5%; min-height: 7.6vh; padding: 1.15vh 4%; display: flex; align-items: center; gap: 3%; border: 1px solid rgba(176,209,198,.16); border-radius: 1.2vh; background: rgba(5,11,12,.72); box-shadow: 0 1vh 3vh rgba(0,0,0,.26); backdrop-filter: blur(9px); pointer-events: none; }
 .state-panel div { display: flex; flex-direction: column; gap: .42vh; }
 .state-panel small { color: #6f8883; font: 700 clamp(7px, .82vh, 17px)/1 ui-monospace, monospace; letter-spacing: .16em; }
 .state-panel strong { color: #eaf4ef; font-size: clamp(11px, 1.42vh, 29px); letter-spacing: .05em; }
+.intel-row { display: flex; align-items: center; gap: 1.1vh; min-height: 1.5vh; }
+.intel-row b { color: #85958f; font: 800 clamp(8px, .95vh, 20px)/1 ui-monospace, monospace; letter-spacing: .08em; }
+.intel-row b.has-intel { color: var(--accent); text-shadow: 0 0 1vh rgba(216,255,120,.35); }
+.intel-row em { color: #74bdb3; font: 700 clamp(7px, .78vh, 16px)/1 ui-monospace, monospace; letter-spacing: .06em; }
 .state-dot { width: 1.15vh; height: 1.15vh; flex: 0 0 auto; border-radius: 50%; background: var(--cold); opacity: calc(.35 + var(--peek-progress) * .65); box-shadow: 0 0 1.3vh rgba(117,219,200,calc(.2 + var(--peek-progress) * .5)); }
 
 .reticle { position: absolute; z-index: 4; left: 50%; top: 50%; width: 7vh; height: 7vh; transform: translate(-50%, -50%); opacity: 0; border: .16vh solid rgba(216,255,120,.72); border-radius: 50%; filter: drop-shadow(0 0 .7vh rgba(190,255,126,.3)); pointer-events: none; }
@@ -54,6 +58,11 @@ button, canvas { -webkit-tap-highlight-color: transparent; }
 .reticle i, .reticle span { position: absolute; background: var(--accent); }
 .reticle i { left: -1.25vh; right: -1.25vh; top: 50%; height: .12vh; transform: translateY(-50%); clip-path: polygon(0 0, 18% 0, 18% 100%, 0 100%, 0 0, 82% 0, 100% 0, 100% 100%, 82% 100%, 82% 0); }
 .reticle span { top: -1.25vh; bottom: -1.25vh; left: 50%; width: .12vh; transform: translateX(-50%); clip-path: polygon(0 0, 100% 0, 100% 18%, 0 18%, 0 0, 0 82%, 100% 82%, 100% 100%, 0 100%, 0 82%); }
+.reticle.is-preaimed { border-color: rgba(255,177,111,.88); filter: drop-shadow(0 0 1.1vh rgba(255,137,69,.55)); }
+
+.aim-surface { position: absolute; z-index: 6; left: 3%; right: 3%; top: 18%; bottom: 34%; border-radius: 2vh; pointer-events: none; touch-action: none; }
+.app.is-aiming .aim-surface { pointer-events: auto; }
+.app.is-aiming .aim-surface::after { content: "拖动画面调整准星"; position: absolute; left: 50%; bottom: 1.5vh; transform: translateX(-50%); color: rgba(196,222,214,.48); font-size: clamp(7px, .78vh, 16px); letter-spacing: .08em; white-space: nowrap; pointer-events: none; }
 
 .instruction-card { position: absolute; z-index: 5; left: 7%; right: 7%; bottom: 33%; min-height: 7.8vh; padding: 1.4vh 5%; display: flex; align-items: center; gap: 5%; opacity: calc(1 - var(--peek-progress)); transform: translateY(calc(var(--peek-progress) * 2vh)); border: 1px solid rgba(173,207,197,.2); border-radius: 1.5vh; background: rgba(5,11,12,.72); backdrop-filter: blur(10px); pointer-events: none; }
 .instruction-card > div { display: flex; flex-direction: column; gap: .55vh; }
