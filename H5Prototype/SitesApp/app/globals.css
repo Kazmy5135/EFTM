@@ -1,0 +1,20 @@
+@import url('/peek-styles.css');
+
+:root {
+  --background: #080d0e;
+  --foreground: #f4efe5;
+  color-scheme: dark;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  overflow: hidden;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+body {
+  min-height: 100dvh;
+}

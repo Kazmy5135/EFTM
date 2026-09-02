@@ -61,6 +61,7 @@ test("three dimensional corridor and real cover geometry are created", () => {
 
 test("fake peek intel uses sampled visibility and five hidden relocation positions", () => {
   assert.match(enemyIntel, /ENEMY_VISIBILITY_THRESHOLD = 0\.1/);
+  assert.match(enemyIntel, /ENEMY_REPOSITION_CHANCE = 0\.25/);
   assert.equal((enemyIntel.match(/id:\s*"/g) ?? []).length, 5);
   assert.match(scene, /ENEMY_VISIBILITY_SAMPLES/);
   assert.match(scene, /calculateEnemyVisibility\(\)/);
@@ -68,6 +69,13 @@ test("fake peek intel uses sampled visibility and five hidden relocation positio
   assert.match(scene, /enemyIntel\.resolveHiddenReposition\(\)/);
   assert.match(scene, /enemyIntel\.consumePendingAutoAim\(\)/);
   assert.match(scene, /applyPreAimToPosition\(preAimPositionIndex\)/);
+  assert.match(scene, /"intel-ghost-glow"/);
+  assert.match(scene, /"intel-ghost-fill"/);
+  assert.match(scene, /depthTest:\s*false/);
+  assert.match(scene, /color:\s*0xffd22e/);
+  assert.match(scene, /enemyIntel\.beginPeek\(\)/);
+  assert.match(scene, /enemyIntel\.finishPeek\(\)/);
+  assert.match(scene, /enemyIntel\.hideGhost\(\)/);
 });
 
 test("fake action holds peek while true aim latches and unlocks center-ray fire", () => {

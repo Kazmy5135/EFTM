@@ -1,4 +1,5 @@
 export const ENEMY_VISIBILITY_THRESHOLD = 0.1;
+export const ENEMY_REPOSITION_CHANCE = 0.25;
 
 export const ENEMY_POSITIONS = Object.freeze([
   Object.freeze({ id: "left-head", label: "左侧高掩体", actor: Object.freeze([-0.9, 0.02, -17.7]), cover: Object.freeze([-0.9, -0.82, -17.42]), coverSize: Object.freeze([1.05, 1.38, 0.34]) }),
@@ -18,6 +19,17 @@ export class EnemyIntel {
     this.pendingAutoAim = false;
     this.lastVisibility = 0;
     this.lastMoveChanged = false;
+    this.observedThisPeek = false;
+    this.ghostVisible = false;
+  }
+
+  beginPeek() {
+    this.observedThisPeek = false;
+    this.ghostVisible = false;
+  }
+
+  hideGhost() {
+    this.ghostVisible = false;
   }
 
   observeFakePeek(visibilityRatio) {
@@ -25,7 +37,14 @@ export class EnemyIntel {
     if (this.lastVisibility < this.visibilityThreshold) return false;
     this.rememberedPositionIndex = this.currentPositionIndex;
     this.pendingAutoAim = true;
+    this.observedThisPeek = true;
     return true;
+  }
+
+  finishPeek() {
+    this.ghostVisible = this.observedThisPeek && this.rememberedPositionIndex !== null;
+    this.observedThisPeek = false;
+    return this.ghostVisible;
   }
 
   consumePendingAutoAim() {
@@ -35,7 +54,7 @@ export class EnemyIntel {
   }
 
   resolveHiddenReposition(moveRoll = Math.random(), positionRoll = Math.random()) {
-    this.lastMoveChanged = clamp01(moveRoll) < 0.5;
+    this.lastMoveChanged = clamp01(moveRoll) < ENEMY_REPOSITION_CHANCE;
     if (!this.lastMoveChanged) return this.currentPositionIndex;
 
     const alternatives = ENEMY_POSITIONS
@@ -57,6 +76,8 @@ export class EnemyIntel {
       pendingAutoAim: this.pendingAutoAim,
       lastVisibility: this.lastVisibility,
       lastMoveChanged: this.lastMoveChanged,
+      observedThisPeek: this.observedThisPeek,
+      ghostVisible: this.ghostVisible,
       intelLabel: this.intelLabel()
     };
   }

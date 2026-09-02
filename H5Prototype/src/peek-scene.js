@@ -28,6 +28,12 @@ const debugEnemyPosition = Number(debugParams.get("enemyPos"));
 if (Number.isInteger(debugEnemyPosition) && debugEnemyPosition >= 0 && debugEnemyPosition < ENEMY_POSITIONS.length) {
   enemyIntel.currentPositionIndex = debugEnemyPosition;
 }
+const debugIntelPosition = Number(debugParams.get("intelPos"));
+if (Number.isInteger(debugIntelPosition) && debugIntelPosition >= 0 && debugIntelPosition < ENEMY_POSITIONS.length) {
+  enemyIntel.rememberedPositionIndex = debugIntelPosition;
+  enemyIntel.pendingAutoAim = true;
+  enemyIntel.ghostVisible = true;
+}
 
 let renderer = null;
 let fallbackContext = null;
@@ -173,6 +179,34 @@ addEnemyPart("dummy-pelvis", [0.48, 0.3, 0.25], [0, -1.02, 0.04], webbingMateria
 addEnemyPart("dummy-left-leg", [0.2, 0.64, 0.22], [-0.15, -1.34, 0.04]);
 addEnemyPart("dummy-right-leg", [0.2, 0.64, 0.22], [0.15, -1.34, 0.04]);
 
+const createIntelGhost = (name, { opacity, wireframe, scale, renderOrder, blending }) => {
+  const ghost = enemyActor.clone(true);
+  ghost.name = name;
+  ghost.scale.setScalar(scale);
+  ghost.visible = false;
+  ghost.traverse((object) => {
+    if (!object.isMesh) return;
+    object.material = new THREE.MeshBasicMaterial({
+      color: 0xffd22e,
+      transparent: true,
+      opacity,
+      depthTest: false,
+      depthWrite: false,
+      wireframe,
+      blending,
+      toneMapped: false
+    });
+    object.castShadow = false;
+    object.receiveShadow = false;
+    object.renderOrder = renderOrder;
+  });
+  scene.add(ghost);
+  return ghost;
+};
+const intelGhostGlow = createIntelGhost("intel-ghost-glow", { opacity: 0.24, wireframe: true, scale: 1.09, renderOrder: 30, blending: THREE.AdditiveBlending });
+const intelGhostFill = createIntelGhost("intel-ghost-fill", { opacity: 0.74, wireframe: false, scale: 1, renderOrder: 31, blending: THREE.NormalBlending });
+const intelGhosts = [intelGhostGlow, intelGhostFill];
+
 const ENEMY_VISIBILITY_SAMPLES = Object.freeze([
   [-0.12, 0.08, 0], [0, 0.12, 0], [0.12, 0.08, 0],
   [-0.3, -0.32, 0], [0.3, -0.32, 0],
@@ -200,6 +234,16 @@ const applyEnemyPosition = (positionIndex) => {
   activeVisibilityOccluders = activeShotTargets.filter((target) => !target.userData.isEnemyPart);
 };
 applyEnemyPosition(enemyIntel.currentPositionIndex);
+
+const syncIntelGhost = (isFullyHidden) => {
+  const positionIndex = enemyIntel.rememberedPositionIndex;
+  const visible = isFullyHidden && enemyIntel.ghostVisible && positionIndex !== null;
+  const rememberedPosition = visible ? ENEMY_POSITIONS[positionIndex].actor : null;
+  for (const ghost of intelGhosts) {
+    ghost.visible = visible;
+    if (rememberedPosition) ghost.position.set(rememberedPosition[0], rememberedPosition[1], rememberedPosition[2]);
+  }
+};
 
 scene.add(new THREE.HemisphereLight(0xafd8d1, 0x35403f, 1.95));
 scene.add(new THREE.AmbientLight(0x6e8b85, 1.28));
@@ -269,6 +313,7 @@ trueAimButton.addEventListener("click", (event) => {
   if (debugAim) return;
   aimInteraction.toggleCommitted();
   if (aimInteraction.committed) {
+    enemyIntel.hideGhost();
     const preAimPositionIndex = enemyIntel.consumePendingAutoAim();
     if (preAimPositionIndex !== null) applyPreAimToPosition(preAimPositionIndex);
   } else {
@@ -282,6 +327,7 @@ let activePointerId = null;
 fakePeekButton.addEventListener("pointerdown", (event) => {
   event.preventDefault();
   if (!aimInteraction.setFakeHeld(true)) return;
+  enemyIntel.hideGhost();
   activePointerId = event.pointerId;
   syncPeekTarget();
   syncControls();
@@ -320,6 +366,7 @@ window.addEventListener("keydown", (event) => {
   if (event.code === "Space") {
     event.preventDefault();
     if (aimInteraction.setFakeHeld(true)) {
+      enemyIntel.hideGhost();
       syncPeekTarget();
       syncControls();
     }
@@ -328,6 +375,7 @@ window.addEventListener("keydown", (event) => {
     event.preventDefault();
     aimInteraction.toggleCommitted();
     if (aimInteraction.committed) {
+      enemyIntel.hideGhost();
       const preAimPositionIndex = enemyIntel.consumePendingAutoAim();
       if (preAimPositionIndex !== null) applyPreAimToPosition(preAimPositionIndex);
     } else {
@@ -733,6 +781,10 @@ const animate = (time) => {
 
   document.documentElement.style.setProperty("--peek-progress", snapshot.progress.toFixed(4));
   const mode = debugAim ? "committed" : debugPeek ? "fake" : aimInteraction.mode();
+  if (!peekCycleActive && snapshot.progress > 0.001) {
+    enemyIntel.beginPeek();
+    peekCycleActive = true;
+  }
   let enemyVisibility = 0;
   if (mode === "fake" && snapshot.progress > 0) {
     enemyVisibility = calculateEnemyVisibility();
@@ -742,12 +794,13 @@ const animate = (time) => {
     ? `可见 ${Math.round(enemyVisibility * 100)}% / 阈值 ${Math.round(ENEMY_VISIBILITY_THRESHOLD * 100)}%`
     : "";
 
-  if (snapshot.progress > 0.001) peekCycleActive = true;
   if (peekCycleActive && snapshot.progress <= 0) {
     const nextPositionIndex = enemyIntel.resolveHiddenReposition();
     applyEnemyPosition(nextPositionIndex);
+    enemyIntel.finishPeek();
     peekCycleActive = false;
   }
+  syncIntelGhost(snapshot.progress <= 0);
 
   if (mode === "committed") {
     if (snapshot.progress < 1) {
@@ -776,6 +829,7 @@ const animate = (time) => {
   document.documentElement.dataset.rememberedEnemyPosition = enemyIntel.rememberedPositionIndex === null ? "none" : String(enemyIntel.rememberedPositionIndex);
   document.documentElement.dataset.pendingAutoAim = String(enemyIntel.pendingAutoAim);
   document.documentElement.dataset.enemyMoved = String(enemyIntel.lastMoveChanged);
+  document.documentElement.dataset.intelGhostVisible = String(enemyIntel.ghostVisible && snapshot.progress <= 0);
   document.documentElement.dataset.aimYaw = aimYaw.toFixed(5);
   document.documentElement.dataset.aimPitch = aimPitch.toFixed(5);
   syncControls(snapshot);
