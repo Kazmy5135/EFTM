@@ -8,6 +8,7 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 const html = readFileSync(join(root, "index.html"), "utf8");
 const styles = readFileSync(join(root, "styles.css"), "utf8");
 const scene = readFileSync(join(root, "src", "peek-scene.js"), "utf8");
+const recoilProfile = readFileSync(join(root, "src", "recoil-profile.js"), "utf8");
 const server = readFileSync(join(root, "server.mjs"), "utf8");
 const packageJson = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 
@@ -69,14 +70,31 @@ test("fake action holds peek while true aim latches and unlocks center-ray fire"
   assert.match(scene, /document\.addEventListener\("pointermove"/);
   assert.match(scene, /aimYaw = THREE\.MathUtils\.clamp/);
   assert.match(scene, /aimPitch = THREE\.MathUtils\.clamp/);
-  assert.match(scene, /const SHOT_INTERVAL_MS = 108/);
-  assert.match(scene, /const RECOIL_VERTICAL_PER_SHOT = 0\.018/);
-  assert.match(scene, /const RECOIL_HORIZONTAL_PER_SHOT = 0\.012/);
-  assert.match(scene, /recoilPitch = Math\.min\(0\.09/);
-  assert.match(scene, /Math\.random\(\) \* 2 - 1/);
-  assert.match(scene, /if \(isFiring\) fireAtReticle\(\)/);
+  assert.match(recoilProfile, /shotIntervalMs:\s*108/);
+  assert.match(recoilProfile, /baseVerticalRadians:\s*0\.018/);
+  assert.match(recoilProfile, /stableFromShot:\s*5/);
+  assert.match(recoilProfile, /stableVerticalMultiplier:\s*0\.52/);
+  assert.match(recoilProfile, /baseHorizontalRadians:\s*0\.012/);
+  assert.match(scene, /recoilImpulseForShot\(burstShotCount, Math\.random\(\)\)/);
+  assert.match(scene, /recoilPitch = Math\.min\(RECOIL_PROFILE\.maxVerticalRadians/);
+  assert.match(scene, /角色自动稳枪 · 减少下压/);
+  assert.match(scene, /if \(isFiring && snapshot\.progress >= 1\)/);
   assert.match(scene, /raycaster\.setFromCamera\(screenCenter, camera\)/);
   assert.match(scene, /isDummyHead/);
+});
+
+test("first-shot hot path reuses audio and tracer resources without forced layout", () => {
+  assert.match(scene, /prepareShotAudio\(\);/);
+  assert.match(scene, /shotAudioContext = new AudioContextClass/);
+  assert.match(scene, /audioContext\.createBufferSource\(\)/);
+  assert.match(scene, /const tracerPositions = new Float32Array\(6\)/);
+  assert.match(scene, /tracerGeometry\.attributes\.position\.needsUpdate = true/);
+  assert.match(scene, /raycaster\.intersectObjects\(shotTargets, false\)/);
+  assert.match(scene, /firstShotDeferred = true/);
+  assert.match(scene, /shotFlash\.animate/);
+  assert.doesNotMatch(scene, /offsetWidth|geometry\.dispose\(\)|material\.dispose\(\)/);
+  assert.equal((scene.match(/new AudioContextClass/g) ?? []).length, 1);
+  assert.equal((scene.match(/new THREE\.Line\(/g) ?? []).length, 1);
 });
 
 test("mobile browser selection and zoom gestures remain suppressed", () => {

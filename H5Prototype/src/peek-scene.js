@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { PeekState } from "./peek-state.js";
 import { AimInteraction } from "./aim-interaction.js";
+import { RECOIL_PROFILE, recoilImpulseForShot, recoilPhaseForShot } from "./recoil-profile.js";
 
 const canvas = document.querySelector("#sceneCanvas");
 const trueAimButton = document.querySelector("#trueAimControl");
@@ -43,6 +44,7 @@ scene.fog = new THREE.FogExp2(0x152326, 0.027);
 
 const camera = new THREE.PerspectiveCamera(54, 0.5, 0.05, 40);
 camera.rotation.order = "YXZ";
+const shotTargets = [];
 
 const material = (color, options = {}) => new THREE.MeshStandardMaterial({
   color,
@@ -59,15 +61,16 @@ const addBox = (name, size, position, color, options = {}) => {
   mesh.castShadow = options.castShadow ?? true;
   mesh.receiveShadow = options.receiveShadow ?? true;
   scene.add(mesh);
+  if (options.shotTarget) shotTargets.push(mesh);
   return mesh;
 };
 
 // Corridor shell: a narrow industrial lane running away from the player.
-addBox("floor", [3.6, 0.18, 22], [0, -1.55, -10.2], 0x3b484a, { roughness: 0.96 });
-addBox("ceiling", [3.6, 0.18, 22], [0, 1.72, -10.2], 0x2a3436, { roughness: 0.95 });
-addBox("left-wall", [0.2, 3.4, 22], [-1.72, 0.05, -10.2], 0x3a484b, { roughness: 0.93 });
-addBox("right-wall", [0.2, 3.4, 22], [1.72, 0.05, -10.2], 0x323f42, { roughness: 0.93 });
-addBox("far-wall", [3.6, 3.4, 0.2], [0, 0.05, -21.1], 0x263235);
+addBox("floor", [3.6, 0.18, 22], [0, -1.55, -10.2], 0x3b484a, { roughness: 0.96, shotTarget: true });
+addBox("ceiling", [3.6, 0.18, 22], [0, 1.72, -10.2], 0x2a3436, { roughness: 0.95, shotTarget: true });
+addBox("left-wall", [0.2, 3.4, 22], [-1.72, 0.05, -10.2], 0x3a484b, { roughness: 0.93, shotTarget: true });
+addBox("right-wall", [0.2, 3.4, 22], [1.72, 0.05, -10.2], 0x323f42, { roughness: 0.93, shotTarget: true });
+addBox("far-wall", [3.6, 3.4, 0.2], [0, 0.05, -21.1], 0x263235, { shotTarget: true });
 addBox("entry-lamp", [1.15, 0.055, 0.3], [-0.7, 1.57, -1.3], 0xb8d8cf, {
   emissive: 0xa7d8ca,
   emissiveIntensity: 2.8,
@@ -81,7 +84,7 @@ addBox("entry-floor-guide", [3.05, 0.015, 0.09], [0, -1.445, -1.85], 0x718b84, {
 });
 
 // Player-side cover. At rest the camera sits behind this slab, so the corridor is genuinely occluded.
-addBox("peek-cover", [2.7, 4.1, 0.32], [1.64, 0.08, 0.02], 0x626d6e, { roughness: 0.76 });
+addBox("peek-cover", [2.7, 4.1, 0.32], [1.64, 0.08, 0.02], 0x626d6e, { roughness: 0.76, shotTarget: true });
 addBox("door-frame", [0.18, 4.1, 0.46], [0.24, 0.08, -0.02], 0x111719, { metalness: 0.45 });
 addBox("door-header", [3.6, 0.22, 0.46], [0, 1.74, -0.02], 0x111719, { metalness: 0.45 });
 addBox("cover-panel", [0.76, 0.62, 0.035], [0.86, 0.45, 0.205], 0x171c1d, { metalness: 0.3 });
@@ -103,14 +106,14 @@ for (let index = 0; index < 6; index += 1) {
 
 addBox("left-pipe", [0.16, 0.16, 17.5], [-1.48, 1.13, -9.8], 0x515f5c, { metalness: 0.72 });
 addBox("right-pipe", [0.11, 0.11, 15.8], [1.47, 1.23, -10.2], 0x564a3a, { metalness: 0.66 });
-addBox("crate-a", [0.78, 0.72, 0.92], [-0.94, -1.1, -8.8], 0x39413c, { roughness: 0.9 });
-addBox("crate-b", [0.62, 0.48, 0.72], [-0.48, -1.22, -9.25], 0x2b3431, { roughness: 0.9 });
-addBox("barrier", [1.2, 0.72, 0.18], [0.65, -1.13, -14.1], 0x4a3026, { metalness: 0.22 });
-addBox("far-door", [1.16, 2.35, 0.12], [-0.34, -0.35, -20.94], 0x243034, { metalness: 0.48 });
+addBox("crate-a", [0.78, 0.72, 0.92], [-0.94, -1.1, -8.8], 0x39413c, { roughness: 0.9, shotTarget: true });
+addBox("crate-b", [0.62, 0.48, 0.72], [-0.48, -1.22, -9.25], 0x2b3431, { roughness: 0.9, shotTarget: true });
+addBox("barrier", [1.2, 0.72, 0.18], [0.65, -1.13, -14.1], 0x4a3026, { metalness: 0.22, shotTarget: true });
+addBox("far-door", [1.16, 2.35, 0.12], [-0.34, -0.35, -20.94], 0x243034, { metalness: 0.48, shotTarget: true });
 
 // A stationary opponent surrogate peeks over a low cover. The body remains hidden;
 // only the head and helmet are exposed, giving the center ray a readable target.
-const dummyCover = addBox("dummy-cover", [1.18, 1.62, 0.34], [0.35, -0.91, -18.18], 0x525d60, { metalness: 0.18 });
+const dummyCover = addBox("dummy-cover", [1.18, 1.62, 0.34], [0.35, -0.91, -18.18], 0x525d60, { metalness: 0.18, shotTarget: true });
 dummyCover.userData.blocksShot = true;
 const dummyHeadMaterial = material(0xc18e70, { roughness: 0.84 });
 dummyHeadMaterial.emissive = new THREE.Color(0x000000);
@@ -121,6 +124,7 @@ dummyHead.scale.set(0.88, 1.12, 0.92);
 dummyHead.castShadow = true;
 dummyHead.userData.isDummyHead = true;
 scene.add(dummyHead);
+shotTargets.push(dummyHead);
 const helmetMaterial = material(0x29383a, { roughness: 0.76, metalness: 0.16 });
 const dummyHelmet = new THREE.Mesh(new THREE.SphereGeometry(0.235, 24, 18, 0, Math.PI * 2, 0, Math.PI * 0.58), helmetMaterial);
 dummyHelmet.name = "dummy-helmet";
@@ -130,6 +134,7 @@ dummyHelmet.rotation.z = -0.08;
 dummyHelmet.castShadow = true;
 dummyHelmet.userData.isDummyHead = true;
 scene.add(dummyHelmet);
+shotTargets.push(dummyHelmet);
 
 scene.add(new THREE.HemisphereLight(0xafd8d1, 0x35403f, 1.95));
 scene.add(new THREE.AmbientLight(0x6e8b85, 1.28));
@@ -160,10 +165,16 @@ const syncPeekTarget = () => {
 
 let isFiring = false;
 let activeFirePointerId = null;
+let burstShotCount = 0;
+let recoilReturnMs = RECOIL_PROFILE.climbReturnMs;
+let firstShotDeferred = false;
 
 const stopFiring = () => {
   isFiring = false;
   activeFirePointerId = null;
+  document.documentElement.dataset.lastBurstShots = String(burstShotCount);
+  burstShotCount = 0;
+  firstShotDeferred = false;
   fireButton.classList.remove("is-firing");
   fireButton.setAttribute("aria-pressed", "false");
 };
@@ -185,6 +196,7 @@ const syncControls = (snapshot = peekState.snapshot()) => {
 
 trueAimButton.addEventListener("click", (event) => {
   event.preventDefault();
+  ensureAudioReady();
   if (debugAim) return;
   aimInteraction.toggleCommitted();
   if (!aimInteraction.committed) stopFiring();
@@ -239,6 +251,7 @@ window.addEventListener("keydown", (event) => {
   if (event.code === "KeyE") {
     event.preventDefault();
     aimInteraction.toggleCommitted();
+    if (!aimInteraction.committed) stopFiring();
     syncPeekTarget();
     syncControls();
   }
@@ -258,11 +271,8 @@ for (const eventName of ["contextmenu", "selectstart", "dragstart", "dblclick", 
 
 const raycaster = new THREE.Raycaster();
 const screenCenter = new THREE.Vector2(0, 0);
-const SHOT_INTERVAL_MS = 108;
 const AIM_YAW_LIMIT = 0.12;
 const AIM_PITCH_LIMIT = 0.14;
-const RECOIL_VERTICAL_PER_SHOT = 0.018;
-const RECOIL_HORIZONTAL_PER_SHOT = 0.012;
 let lastShotTime = -Infinity;
 let aimYaw = 0;
 let aimPitch = 0;
@@ -271,62 +281,118 @@ let recoilPitch = 0;
 let lastFirePointerX = 0;
 let lastFirePointerY = 0;
 
-const playShotSound = () => {
-  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-  if (!AudioContextClass) return;
-  const audioContext = new AudioContextClass();
-  const oscillator = audioContext.createOscillator();
-  const gain = audioContext.createGain();
-  oscillator.type = "square";
-  oscillator.frequency.setValueAtTime(105, audioContext.currentTime);
-  oscillator.frequency.exponentialRampToValueAtTime(42, audioContext.currentTime + 0.07);
-  gain.gain.setValueAtTime(0.12, audioContext.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.08);
-  oscillator.connect(gain).connect(audioContext.destination);
-  oscillator.start();
-  oscillator.stop(audioContext.currentTime + 0.08);
-  oscillator.addEventListener("ended", () => audioContext.close());
+const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+let shotAudioContext = null;
+let shotAudioBuffer = null;
+
+const buildShotAudioBuffer = (audioContext) => {
+  const durationSeconds = 0.075;
+  const frameCount = Math.ceil(audioContext.sampleRate * durationSeconds);
+  const buffer = audioContext.createBuffer(1, frameCount, audioContext.sampleRate);
+  const channel = buffer.getChannelData(0);
+  for (let index = 0; index < frameCount; index += 1) {
+    const time = index / audioContext.sampleRate;
+    const envelope = Math.pow(1 - index / frameCount, 3.4);
+    const lowPulse = Math.sin(time * Math.PI * 2 * 78);
+    const noise = Math.random() * 2 - 1;
+    channel[index] = (lowPulse * 0.58 + noise * 0.42) * envelope * 0.16;
+  }
+  return buffer;
 };
 
-const showShotFeedback = (label) => {
-  shotFlash.classList.remove("is-firing");
-  shotResult.classList.remove("is-visible");
-  void shotFlash.offsetWidth;
-  shotFlash.classList.add("is-firing");
-  shotResult.textContent = label;
-  shotResult.classList.add("is-visible");
+const prepareShotAudio = () => {
+  if (!AudioContextClass) return null;
+  try {
+    if (!shotAudioContext || shotAudioContext.state === "closed") {
+      shotAudioContext = new AudioContextClass({ latencyHint: "interactive" });
+      shotAudioBuffer = buildShotAudioBuffer(shotAudioContext);
+    }
+    return shotAudioContext;
+  } catch {
+    return null;
+  }
 };
+
+const ensureAudioReady = () => {
+  const audioContext = prepareShotAudio();
+  if (!audioContext) return null;
+  try {
+    if (shotAudioContext.state === "suspended") {
+      void shotAudioContext.resume().catch(() => { /* visual feedback remains available */ });
+    }
+    return shotAudioContext;
+  } catch {
+    return null;
+  }
+};
+prepareShotAudio();
+
+const playShotSound = () => {
+  const audioContext = ensureAudioReady();
+  if (!audioContext || !shotAudioBuffer || audioContext.state !== "running") return;
+  const source = audioContext.createBufferSource();
+  source.buffer = shotAudioBuffer;
+  source.connect(audioContext.destination);
+  source.start();
+};
+
+let flashAnimation = null;
+let resultAnimation = null;
+const showShotFeedback = (label) => {
+  shotResult.textContent = label;
+  flashAnimation?.cancel();
+  resultAnimation?.cancel();
+  flashAnimation = shotFlash.animate([
+    { opacity: 1, boxShadow: "0 0 2vh 1vh #fff4b7, 0 0 8vh 3vh rgba(255,139,55,.85)" },
+    { opacity: 0, boxShadow: "0 0 9vh 3vh transparent" }
+  ], { duration: 120, easing: "ease-out" });
+  resultAnimation = shotResult.animate([
+    { opacity: 0, transform: "translate(-50%, 1.2vh) scale(.86)" },
+    { opacity: 1, transform: "translate(-50%, 0) scale(1)", offset: 0.14 },
+    { opacity: 1, transform: "translate(-50%, 0) scale(1)", offset: 0.65 },
+    { opacity: 0, transform: "translate(-50%, -2vh) scale(.96)" }
+  ], { duration: 720, easing: "ease-out" });
+};
+
+const tracerPositions = new Float32Array(6);
+const tracerGeometry = new THREE.BufferGeometry();
+tracerGeometry.setAttribute("position", new THREE.BufferAttribute(tracerPositions, 3));
+const tracerMaterial = new THREE.LineBasicMaterial({ color: 0xffe49b, transparent: true, opacity: 0.95 });
+const tracer = new THREE.Line(tracerGeometry, tracerMaterial);
+tracer.name = "shot-tracer";
+tracer.renderOrder = 20;
+tracer.visible = false;
+scene.add(tracer);
+let tracerHideTimer = null;
 
 const addTracer = (start, end, color) => {
-  const geometry = new THREE.BufferGeometry().setFromPoints([start, end]);
-  const tracer = new THREE.Line(geometry, new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.95 }));
-  tracer.name = "shot-tracer";
-  tracer.renderOrder = 20;
-  scene.add(tracer);
-  window.setTimeout(() => {
-    scene.remove(tracer);
-    geometry.dispose();
-    tracer.material.dispose();
-  }, 120);
+  tracerPositions.set([start.x, start.y, start.z, end.x, end.y, end.z]);
+  tracerGeometry.attributes.position.needsUpdate = true;
+  tracerMaterial.color.setHex(color);
+  tracer.visible = true;
+  if (tracerHideTimer !== null) window.clearTimeout(tracerHideTimer);
+  tracerHideTimer = window.setTimeout(() => { tracer.visible = false; }, 120);
 };
 
 const fireAtReticle = () => {
   const snapshot = peekState.snapshot();
   if (!(aimInteraction.canFire(snapshot.progress) || (debugAim && snapshot.progress >= 1))) return;
   const now = performance.now();
-  if (now - lastShotTime < SHOT_INTERVAL_MS) return;
+  if (now - lastShotTime < RECOIL_PROFILE.shotIntervalMs) return;
   lastShotTime = now;
 
-  recoilPitch = Math.min(0.09, recoilPitch + RECOIL_VERTICAL_PER_SHOT);
+  burstShotCount += 1;
+  const recoilImpulse = recoilImpulseForShot(burstShotCount, Math.random());
+  recoilReturnMs = recoilImpulse.returnMs;
+  recoilPitch = Math.min(RECOIL_PROFILE.maxVerticalRadians, recoilPitch + recoilImpulse.vertical);
   recoilYaw = THREE.MathUtils.clamp(
-    recoilYaw + (Math.random() * 2 - 1) * RECOIL_HORIZONTAL_PER_SHOT,
-    -0.045,
-    0.045
+    recoilYaw + recoilImpulse.horizontal,
+    -RECOIL_PROFILE.maxHorizontalRadians,
+    RECOIL_PROFILE.maxHorizontalRadians
   );
 
   raycaster.setFromCamera(screenCenter, camera);
-  const intersections = raycaster.intersectObjects(scene.children, true)
-    .filter((hit) => hit.object.name !== "shot-tracer");
+  const intersections = raycaster.intersectObjects(shotTargets, false);
   const firstHit = intersections[0];
   const origin = raycaster.ray.origin.clone().add(raycaster.ray.direction.clone().multiplyScalar(0.35));
   const end = firstHit ? firstHit.point.clone() : raycaster.ray.at(24, new THREE.Vector3());
@@ -357,7 +423,6 @@ fireButton.addEventListener("pointerdown", (event) => {
   fireButton.classList.add("is-firing");
   fireButton.setAttribute("aria-pressed", "true");
   try { fireButton.setPointerCapture(event.pointerId); } catch { /* document release remains authoritative */ }
-  fireAtReticle();
 });
 const releaseFirePointer = (event) => {
   if (activeFirePointerId === null || event.pointerId !== activeFirePointerId) return;
@@ -382,7 +447,6 @@ window.addEventListener("keydown", (event) => {
   isFiring = true;
   fireButton.classList.add("is-firing");
   fireButton.setAttribute("aria-pressed", "true");
-  fireAtReticle();
 });
 window.addEventListener("keyup", (event) => {
   if (event.code !== "KeyF") return;
@@ -507,7 +571,7 @@ const animate = (time) => {
   const deltaMs = Math.min(250, time - previousTime);
   previousTime = time;
   const snapshot = peekState.step(deltaMs);
-  const recoilDecay = Math.exp(-deltaMs / 230);
+  const recoilDecay = Math.exp(-deltaMs / recoilReturnMs);
   recoilPitch *= recoilDecay;
   recoilYaw *= recoilDecay;
   const breathing = snapshot.progress > 0.98 ? Math.sin(time * 0.0025) * 0.006 : 0;
@@ -517,7 +581,18 @@ const animate = (time) => {
   document.documentElement.style.setProperty("--peek-progress", snapshot.progress.toFixed(4));
   const mode = debugAim ? "committed" : debugPeek ? "fake" : aimInteraction.mode();
   if (mode === "committed") {
-    stateLabel.textContent = snapshot.progress >= 1 ? "真架枪 · 按住射击 / 拖动压枪" : isFiring ? "真架枪 · 已预备开火" : "真架枪 · 自动探出中";
+    if (snapshot.progress < 1) {
+      stateLabel.textContent = isFiring ? "真架枪 · 已预备开火" : "真架枪 · 自动探出中";
+    } else if (!isFiring || burstShotCount === 0) {
+      stateLabel.textContent = "真架枪 · 按住射击 / 拖动压枪";
+    } else {
+      const recoilPhase = recoilPhaseForShot(burstShotCount);
+      stateLabel.textContent = recoilPhase === "kick"
+        ? "首发起跳 · 立即向下压"
+        : recoilPhase === "climb"
+          ? `连射爬升 · 第 ${burstShotCount} 发`
+          : "角色自动稳枪 · 减少下压";
+    }
   } else if (mode === "fake") {
     stateLabel.textContent = snapshot.progress >= 1 ? "假动作 · 完全探出" : "假动作 · 探头中";
   } else {
@@ -525,11 +600,17 @@ const animate = (time) => {
   }
   progressFill.style.transform = `scaleX(${snapshot.progress.toFixed(4)})`;
   reticle.style.opacity = String(Math.max(0, (snapshot.progress - 0.55) / 0.45));
+  document.documentElement.dataset.recoilPhase = burstShotCount === 0 ? "idle" : recoilPhaseForShot(burstShotCount);
+  document.documentElement.dataset.burstShots = String(burstShotCount);
   syncControls(snapshot);
-  if (isFiring) fireAtReticle();
 
   if (renderer) renderer.render(scene, camera);
   else renderFallback(snapshot.progress, snapshot.pose.roll);
+
+  if (isFiring && snapshot.progress >= 1) {
+    if (burstShotCount === 0 && !firstShotDeferred) firstShotDeferred = true;
+    else fireAtReticle();
+  }
   requestAnimationFrame(animate);
 };
 requestAnimationFrame(animate);
