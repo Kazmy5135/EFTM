@@ -243,4 +243,4 @@ last_applied_work: "004"
 - V1 H5 交接：`Docs/30_Iterations/004-peek-camera/H5PrototypeBrief.md`。
 - V1 H5 证据：`Docs/30_Iterations/004-peek-camera/Validation.md`。
 - 关联决策：`DDR-001`，accepted。
-- 生效 Git commit：待本次设计批准提交后登记。
+- 生效 Git commit：`88d04fd`。

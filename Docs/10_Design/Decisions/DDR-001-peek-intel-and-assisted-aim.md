@@ -93,4 +93,4 @@ last_updated: 2026-09-03
 - 工作项：`Docs/30_Iterations/004-peek-camera/IterationBrief.md`。
 - H5 V1：`H5-PEEK-CAMERA-001`，prototype version `V1`。
 - 验证证据：`Docs/30_Iterations/004-peek-camera/Validation.md`。
-- 生效 Git commit：待本次设计批准提交后登记。
+- 生效 Git commit：`88d04fd`。

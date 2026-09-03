@@ -164,4 +164,4 @@ EFTM 是一款竖屏、单手为主的手机多人实时搜打撤游戏：多名
 - 战斗模块 V1 工作项：`Docs/30_Iterations/004-peek-camera/IterationBrief.md`
 - 研究记录：`Docs/40_Research/TarkovGridInventory.md`
 - 关联 DDR：`DDR-001`（accepted）。
-- 生效 Git commit：待本次设计批准提交后登记。
+- 生效 Git commit：`88d04fd`。
