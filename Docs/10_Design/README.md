@@ -6,6 +6,7 @@
 
 - [EFTM 产品定义](ProductDefinition.md)
 - [核心战斗设计](CoreCombatDesign.md)
+- [DDR-001 真假 Peek、旧位置情报与辅助瞄准](Decisions/DDR-001-peek-intel-and-assisted-aim.md)
 
 - 新规格从 `_templates/SystemDesign.md` 复制，状态从 `draft` 开始。
 - 重要设计取舍记录在 `Decisions`。

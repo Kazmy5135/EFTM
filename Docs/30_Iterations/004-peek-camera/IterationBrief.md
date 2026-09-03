@@ -2,11 +2,15 @@
 title: 004 - 3D 摄像机 Peek 视角验证
 work_id: "004"
 work_type: experiment
-work_status: discussing
+work_status: closed
+prototype_version: V1
 change_id: null
 target_document_ids:
+  - DESIGN-PRODUCT-DEFINITION
   - DESIGN-CORE-COMBAT
+  - DDR-001
   - PROJECT-STATUS
+  - TRACEABILITY-REGISTER
 last_updated: 2026-09-02
 ---
 
@@ -40,7 +44,7 @@ last_updated: 2026-09-02
 - 不包含敌人 AI、生命、伤害、弹匣、换弹、切换掩体或联网对战。
 - 不验证武器模型、角色身体、战斗数值与真人对抗。
 - 不决定正式 Unity 摄像机实现、动画方案或生产美术标准。
-- 不用本实验直接改写 draft 战斗设计。
+- 本实验可以在设计者确认后同步为 draft 设计方向，但不能自动成为 accepted 基线或 Unity 技术契约。
 
 ## 技术实验选择
 
@@ -74,14 +78,21 @@ last_updated: 2026-09-02
 - 真架枪后立即按住开火，在 Peek 完成和首发衔接处出现明显停顿或输入卡死。
 - 目标手机无法稳定运行 WebGL 场景。
 
+## V1 设计回传
+
+- 设计者于 2026-09-02 确认取消原先上滑架枪和下滑回撤，把当前 H5 方向作为战斗模块 V1 的最基础方向。
+- `H5-PEEK-CAMERA-001 V1` 只覆盖真假 Peek、旧位置情报、辅助预瞄、有限调瞄和基础射击手感，不代表完整战斗系统或完整游戏。
+- 回传目标 `DESIGN-PRODUCT-DEFINITION`、`DESIGN-CORE-COMBAT` 和 `DDR-001` 已于 2026-09-03 由设计者全部批准为 accepted。
+- 设计确认后的下一流程为 Unity 技术设计，再拆分最小 Unity 实现与验证；不直接把 H5 的 Three.js 结构迁入 Unity。
+
 ## 状态门禁
 
 - [x] proposed
 - [x] discussing
-- [ ] review
-- [ ] approved
-- [ ] applied
-- [ ] closed
+- [x] review
+- [x] approved
+- [x] applied
+- [x] closed
 
 ## 关联记录
 

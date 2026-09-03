@@ -1,9 +1,12 @@
 ---
 title: H5-PEEK-CAMERA-001 验证交接
 prototype_id: H5-PEEK-CAMERA-001
+prototype_version: V1
+version_scope: combat-foundation
+version_commit: b9c8121
 work_id: "004"
-status: active
-last_updated: 2026-09-02
+status: completed
+last_updated: 2026-09-03
 ---
 
 # H5-PEEK-CAMERA-001
@@ -11,12 +14,18 @@ last_updated: 2026-09-02
 ## 设计来源及状态
 
 - 来源：设计者于 2026-09-01 提出的参考图与交互说明。
-- 相关设计：`DESIGN-CORE-COMBAT`，draft；本实验不直接修改其正式语义。
+- 相关设计：`DESIGN-CORE-COMBAT`，accepted；设计者已于 2026-09-03 批准把本原型作为战斗模块 V1 基础方向。
 - 旧实验：`H5-COMBAT-001` 已由 Git commit `de45dd2` 保存，本轮不继承其实现范围。
 
 ## 目标体验与假设
 
 默认摄像机退在右侧近墙后，主体通道被墙遮挡，但左侧画面边缘能看到少量通道。真架枪点击后自动 Peek 到底并锁定，完全探出后允许向准星位置开火；假动作只在按住期间 Peek，松开后立刻缩回且不提供开火。玩家应从真实遮挡、空间视差和操作差异中理解承诺攻击与试探暴露的区别。
+
+## V1 版本边界
+
+本交接记录的 V1 只代表战斗模块最基础方向：真假 Peek、旧位置情报、辅助预瞄、有限手动调瞄和连续射击。弹匣、伤害、左右掩体、手雷、敌人 AI、联网、探索、搜刮和撤离均不属于该 V1 原型范围。
+
+V1 可运行实现快照对应 Git commit `b9c8121`；后续正式设计与 Unity 实现以本文档描述的可观察行为为输入，不复制 H5 技术结构。
 
 ## 原型范围
 
