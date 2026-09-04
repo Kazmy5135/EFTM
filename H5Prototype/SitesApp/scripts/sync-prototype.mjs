@@ -11,6 +11,8 @@ await mkdir(publicRoot, { recursive: true });
 await Promise.all([
   copyFile(resolve(prototypeRoot, 'peek-app.js'), resolve(publicRoot, 'peek-app.js')),
   copyFile(resolve(prototypeRoot, 'styles.css'), resolve(publicRoot, 'peek-styles.css')),
+  copyFile(resolve(prototypeRoot, 'inventory-app.js'), resolve(publicRoot, 'inventory-app.js')),
+  copyFile(resolve(prototypeRoot, 'inventory-styles.css'), resolve(publicRoot, 'inventory-styles.css')),
 ]);
 
-process.stdout.write('Synced H5-PEEK-CAMERA-001 into the Sites deployment project.\n');
+process.stdout.write('Synced combat and inventory H5 prototypes into the Sites deployment project.\n');

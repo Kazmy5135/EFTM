@@ -1,0 +1,18 @@
+export const INITIAL_ITEMS = Object.freeze([
+  { id: 'rifle', name: '长枪', kind: 'weapon', container: 'backpack', x: 0, y: 0, width: 1, height: 3, rotation: 0 },
+  { id: 'armor', name: '护甲', kind: 'armor', container: 'backpack', x: 1, y: 0, width: 2, height: 2, rotation: 0 },
+  { id: 'medkit', name: '医疗包', kind: 'medical', container: 'backpack', x: 3, y: 0, width: 1, height: 2, rotation: 0 },
+  { id: 'case', name: '仪器箱', kind: 'utility', container: 'backpack', x: 4, y: 0, width: 2, height: 3, rotation: 0 },
+  { id: 'magazine', name: '弹匣', kind: 'supply', container: 'backpack', x: 1, y: 2, width: 1, height: 2, rotation: 0 },
+  { id: 'grenade', name: '雷', kind: 'weapon', container: 'backpack', x: 2, y: 2, width: 1, height: 1, rotation: 0 },
+  { id: 'ammo', name: '弹药', kind: 'supply', container: 'backpack', x: 0, y: 4, width: 2, height: 1, rotation: 90 },
+  { id: 'tools', name: '工具', kind: 'utility', container: 'backpack', x: 2, y: 3, width: 2, height: 2, rotation: 0 },
+  { id: 'key', name: '钥匙', kind: 'utility', container: 'backpack', x: 5, y: 3, width: 1, height: 1, rotation: 0 },
+  { id: 'food', name: '口粮', kind: 'supply', container: 'backpack', x: 0, y: 5, width: 3, height: 1, rotation: 90 },
+  { id: 'smg', name: '冲锋枪', kind: 'weapon', container: 'chest', x: 0, y: 0, width: 2, height: 3, rotation: 0 },
+  { id: 'scope', name: '瞄具', kind: 'utility', container: 'chest', x: 2, y: 0, width: 1, height: 2, rotation: 0 },
+  { id: 'plate', name: '插板', kind: 'armor', container: 'chest', x: 2, y: 2, width: 2, height: 2, rotation: 0 },
+  { id: 'bandage', name: '绷带', kind: 'medical', container: 'chest', x: 0, y: 3, width: 1, height: 1, rotation: 0 },
+  { id: 'injector', name: '针剂', kind: 'medical', container: 'chest', x: 0, y: 4, width: 1, height: 1, rotation: 0 },
+  { id: 'parts', name: '零件', kind: 'supply', container: 'chest', x: 1, y: 3, width: 1, height: 2, rotation: 0 },
+]);

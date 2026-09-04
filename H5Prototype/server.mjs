@@ -48,10 +48,12 @@ createServer(async (request, response) => {
   }
 }).listen(port, host, () => {
   process.stdout.write(`Local: http://127.0.0.1:${port}/\n`);
+  process.stdout.write(`Inventory: http://127.0.0.1:${port}/inventory.html\n`);
   for (const addresses of Object.values(networkInterfaces())) {
     for (const address of addresses || []) {
       if (address.family === "IPv4" && !address.internal) {
         process.stdout.write(`LAN:   http://${address.address}:${port}/\n`);
+        process.stdout.write(`LAN Inventory: http://${address.address}:${port}/inventory.html\n`);
       }
     }
   }

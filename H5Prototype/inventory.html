@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#080d0e">
+  <title>EFTM · 搜索与背包整理原型</title>
+  <link rel="stylesheet" href="inventory-styles.css">
+</head>
+<body>
+  <main id="app" class="app inventory-app" aria-label="EFTM 搜索与背包整理原型">
+    <div class="grain" aria-hidden="true"></div>
+    <div class="edge-shadow" aria-hidden="true"></div>
+
+    <header class="top-hud">
+      <div>
+        <p>H5-SEARCH-INVENTORY-001</p>
+        <h1>战术整理</h1>
+      </div>
+      <div class="header-actions">
+        <button id="resetControl" class="icon-control" type="button" aria-label="重置物品布局">↺</button>
+        <button id="exitControl" class="icon-control" type="button" aria-label="退出整理界面">×</button>
+      </div>
+    </header>
+
+    <section class="interaction-hint" aria-live="polite">
+      <span class="state-dot" aria-hidden="true"></span>
+      <div>
+        <small>ONE-HAND CONTROL</small>
+        <strong id="stateLabel">点击旋转 · 拖动移动</strong>
+      </div>
+    </section>
+
+    <section class="inventory-workspace" aria-label="背包和搜索箱">
+      <article class="container-panel backpack-panel">
+        <header class="container-heading">
+          <div><small>LOADOUT</small><h2>背包</h2></div>
+          <span>6 × 6</span>
+        </header>
+        <div id="backpackGrid" class="item-grid backpack-grid" data-container="backpack" aria-label="六乘六背包"></div>
+      </article>
+
+      <div class="transfer-marker" aria-hidden="true"><i></i><span>双向移动</span><i></i></div>
+
+      <article class="container-panel chest-panel">
+        <header class="container-heading">
+          <div><small>SEARCH RESULT</small><h2>搜索箱</h2></div>
+          <span>4 × 5</span>
+        </header>
+        <div id="chestGrid" class="item-grid chest-grid" data-container="chest" aria-label="四乘五搜索箱"></div>
+      </article>
+    </section>
+
+    <div id="statusToast" class="status-toast" role="status" aria-live="polite" hidden></div>
+    <p class="experiment-note">单手整理验证 · 点击旋转 90° · 拖动跨容器</p>
+
+    <section id="exitSheet" class="exit-sheet" aria-modal="true" role="dialog" aria-labelledby="exitTitle" hidden>
+      <div>
+        <small>SEARCH PAUSED</small>
+        <h2 id="exitTitle">已退出整理</h2>
+        <p>未能放下的旋转已撤销。</p>
+        <button id="resumeControl" type="button">继续整理</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="inventory-app.js"></script>
+</body>
+</html>

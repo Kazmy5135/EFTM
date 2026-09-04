@@ -6,9 +6,12 @@
   "description": "Experimental portrait 3D camera peek prototype for EFTM.",
   "scripts": {
     "build": "esbuild src/peek-scene.js --bundle --minify --format=iife --platform=browser --target=es2020 --outfile=peek-app.js",
+    "build:inventory": "esbuild src/inventory-app.js --bundle --minify --format=iife --platform=browser --target=es2020 --outfile=inventory-app.js",
     "serve": "npm run build && node server.mjs",
+    "serve:inventory": "npm run build:inventory && node server.mjs",
     "test": "node --test tests/*.test.js",
-    "check": "npm run build && node --check src/aim-interaction.js && node --check src/enemy-intel.js && node --check src/peek-state.js && node --check src/recoil-profile.js && node --check src/peek-scene.js && node --check server.mjs && node --test tests/*.test.js"
+    "check:inventory": "npm run build:inventory && node --check src/inventory-model.js && node --check src/inventory-fixture.js && node --check src/inventory-app.js && node --test tests/inventory-model.test.js",
+    "check": "npm run build && npm run build:inventory && node --check src/aim-interaction.js && node --check src/enemy-intel.js && node --check src/peek-state.js && node --check src/recoil-profile.js && node --check src/peek-scene.js && node --check src/inventory-model.js && node --check src/inventory-fixture.js && node --check src/inventory-app.js && node --check server.mjs && node --test tests/*.test.js"
   },
   "dependencies": {
     "three": "^0.185.1"
