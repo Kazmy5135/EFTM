@@ -399,4 +399,4 @@ Foundation 至少输出以下一次性事件：
 - Unity 当前实现：developing；从 U1 确定性领域模型开始。
 - 适用工作项：`Docs/30_Iterations/005-unity-combat-foundation/IterationBrief.md`。
 - 批准记录：设计者于 2026-09-04 确认技术文档通过。
-- 生效 Git commit：待本次技术批准提交后登记。
+- 生效 Git commit：`60d1c13`。

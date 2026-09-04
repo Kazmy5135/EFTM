@@ -5,6 +5,7 @@
 - 工作项：`005-unity-combat-foundation`
 - 设计：`DESIGN-PRODUCT-DEFINITION`、`DESIGN-CORE-COMBAT`、`DDR-001`，accepted，设计基线 commit `88d04fd`。
 - 技术：`TECH-COMBAT-FOUNDATION-V1`，accepted；设计者于 2026-09-04 批准。
+- 技术基线 commit：`60d1c13`。
 - H5：`H5-PEEK-CAMERA-001 V1`，tag `h5-peek-camera-v1`，commit `b9c8121`。
 - Unity：`2022.3.62f2`。
 
