@@ -14,7 +14,9 @@ namespace EFTM.Editor
             "Assets/_Project/Runtime/EFTM.Runtime.asmdef",
             "Assets/_Project/Editor/EFTM.Editor.asmdef",
             "Assets/_Project/Tests/EditMode/EFTM.Tests.EditMode.asmdef",
+            "Assets/_Project/Tests/PlayMode/EFTM.Tests.PlayMode.asmdef",
             "Assets/_Project/Scenes/Bootstrap.unity",
+            "Assets/_Project/Scenes/CombatFoundationV1.unity",
             "Packages/manifest.json",
             "ProjectSettings/ProjectVersion.txt"
         };
@@ -61,6 +63,13 @@ namespace EFTM.Editor
                 !bootstrapScene[0].enabled)
             {
                 failures.Add("Bootstrap scene must be the first enabled Build Settings scene.");
+            }
+
+            if (bootstrapScene.Length < 2 ||
+                bootstrapScene[1].path != "Assets/_Project/Scenes/CombatFoundationV1.unity" ||
+                !bootstrapScene[1].enabled)
+            {
+                failures.Add("CombatFoundationV1 scene must be the second enabled Build Settings scene.");
             }
 
             if (failures.Count == 0)

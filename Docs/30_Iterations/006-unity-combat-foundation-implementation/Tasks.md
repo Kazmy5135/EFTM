@@ -12,11 +12,11 @@
 
 ## U2 场景、输入与摄像机
 
-- [ ] 建立独立 PlayMode 测试程序集。
-- [ ] 建立 `CombatFoundationV1.unity` 与场景组合根。
-- [ ] 实现 UI Toolkit 真架枪、假动作、开火和 Aim Surface。
-- [ ] 实现显式 Hidden/Exposed Pose 的摄像机插值与侧倾。
-- [ ] 实现暂停、失焦、PointerCancel 和 OnDisable 安全释放。
+- [x] 建立独立 PlayMode 测试程序集。
+- [x] 建立 `CombatFoundationV1.unity` 与场景组合根。
+- [x] 实现 UI Toolkit 真架枪、假动作、开火和 Aim Surface。
+- [x] 实现显式 Hidden/Exposed Pose 的摄像机插值与侧倾。
+- [x] 实现暂停、失焦、PointerCancel 和 OnDisable 安全释放。
 
 ## U3 可见性与情报
 

@@ -8,4 +8,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/_Project/Scenes/Bootstrap.unity
     guid: 10c360aa1c8947838384ce9aa9f8329c
+  - enabled: 1
+    path: Assets/_Project/Scenes/CombatFoundationV1.unity
+    guid: 24fd66034ec5d4741a47bf8418dc2d4e
   m_configObjects: {}

@@ -33,4 +33,10 @@
 
 - development 工作项已启动，交付状态为 developing。
 - U1 确定性领域模型已完成：目标编辑器导入、`.meta`、Unity 编译、框架校验和 19 项 EditMode 均通过。
-- U1 门禁关闭，可以进入 U2 场景、输入与摄像机实现；工作项整体仍为 developing。
+- U2 已建立 `CombatFoundationV1.unity`、第二 Build Settings 场景、场景级组合根、运行时设置资产、UI Toolkit Panel/Theme、指针输入适配、显式 Hidden/Exposed 摄像机 Pose 和 Bootstrap 后续加载器。
+- 输入层只发送 `CombatCommand`；Foundation 继续不依赖 UI、Camera、Transform 或 Scene。假动作、开火和 Aim Surface 分别记录 pointer id，其他手指的抬起不会释放当前操作。
+- 系统中断通过 `ReleaseAll` 停止假动作和开火，并让锁定的真架枪进入返回路径；`PointerCancel`、Pointer Capture 丢失、失焦、暂停与 `OnDisable` 均接入该路径。
+- 首轮 PlayMode 为 4/5，通过测试定位到 `CombatFoundationSceneRoot.Awake` 早于 `UIDocument` 面板根创建；输入视图改为可延迟、幂等构建后复测 5/5 通过。
+- 按 Unity 2022.3 官方运行时 UI 规则增加 Panel Settings 与默认主题继承文件；最终 PlayMode 日志中 `No Theme Style Sheet` 警告为 0。
+- 当前最终文件在 Unity 2022.3.62f2 隔离副本中完成：EditMode 19/19、PlayMode 5/5、框架校验通过，0 个测试失败。
+- U2 自动化门禁关闭；手机竖屏触达、侧倾方向与空间体感将在后续整体验证中由设计者确认。下一实现切片为 U3，工作项整体仍为 developing。

@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1d0c24a55bb4c2948b871f639940d663, type: 3}
+  m_Name: CombatFoundationSettings
+  m_EditorClassIdentifier: 
+  peekOutDurationSeconds: 0.3
+  peekReturnDurationSeconds: 0.24
+  maxTickSeconds: 0.25
+  visibilityThreshold: 0.1
+  enemyRepositionChance: 0.25
+  enemyPositionCount: 5
+  shotIntervalSeconds: 0.108
+  maxShotsPerTick: 3
+  stableFromShot: 5
+  aimYawLimitDegrees: 6.88
+  aimPitchLimitDegrees: 8.02
+  yawDegreesPerReferenceWidth: 27.5
+  pitchDegreesPerReferenceHeight: 51.57
+  baseVerticalRecoilDegrees: 1.03
+  baseHorizontalRecoilDegrees: 0.69
+  maxVerticalRecoilDegrees: 5.16
+  maxHorizontalRecoilDegrees: 2.58
+  climbReturnSeconds: 0.25
+  stableReturnSeconds: 0.145
+  randomSeed: 20260904
+

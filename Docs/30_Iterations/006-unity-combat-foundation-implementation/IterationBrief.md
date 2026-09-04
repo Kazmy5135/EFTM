@@ -35,13 +35,14 @@ last_updated: 2026-09-04
 
 ## 当前切片
 
-当前只执行 U1：
+U1 与 U2 已完成自动化门禁：
 
-- `Assets/_Project/Runtime/Combat/Foundation` 下的纯状态、命令、配置、随机源、情报、事件和快照。
-- 真/假 Peek、300ms/240ms、10% 情报、25% 换位、fresh snap、开火预备、108ms 连射和后坐力阶段。
-- 对应 EditMode 自动化。
+- `CombatFoundationV1.unity`、场景级组合根与独立 PlayMode 测试程序集已经建立。
+- UI Toolkit 已接入真架枪、假动作、开火与中央 Aim Surface，并按 pointer id 隔离输入。
+- 摄像机由显式 Hidden/Exposed Pose 驱动位置、旋转、侧倾和瞄准偏移。
+- PointerCancel、捕获丢失、窗口失焦、应用暂停和组件禁用均进入安全释放与返回路径。
 
-U1 不创建战斗场景、Camera、UI、Shader、Prefab、敌人表现或射线命中。
+下一切片为 U3，尚未开始：五点位、20 点真实遮挡可见性、最后位置情报和黄色透视剪影。射线命中、弹道与枪械表现继续由 U4 承担。
 
 ## H5 局部门禁
 
@@ -70,4 +71,3 @@ U1 不创建战斗场景、Camera、UI、Shader、Prefab、敌人表现或射线
 - 任务：`Tasks.md`
 - 验证：`Validation.md`
 - 技术基线：`Docs/20_Technical/CombatFoundationV1TechnicalDesign.md`
-
