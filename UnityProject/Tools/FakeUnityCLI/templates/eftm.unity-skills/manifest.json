@@ -1,0 +1,18 @@
+{
+  "template_package_id": "eftm.unity-skills",
+  "manifest_version": "1.0",
+  "publisher": "eftm",
+  "templates": [
+    {
+      "id": "eftm.start-unityskills-server",
+      "source": "start-unityskills-server.cs.txt",
+      "sha256": "2aa8bbcada022e90fe11b9afb7b5ff8f24ef630cf7ff73c1146f7034871d5bba",
+      "summary": "Idempotently start the EFTM UnitySkills HTTP server",
+      "required_capabilities": ["roslyn_exec", "structured_result_json"],
+      "mutates_project": true,
+      "idempotent": true,
+      "replay_after_reload": false,
+      "parameters_schema": {}
+    }
+  ]
+}

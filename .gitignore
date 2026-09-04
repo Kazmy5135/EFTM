@@ -10,6 +10,9 @@
 [Rr]ecordings/
 [Tt]est[Rr]esults/
 
+# FakeUnityCLI local cache, logs, snapshots, and operation state
+UnityProject/.fuc/
+
 # Unity generated files
 *.pidb
 *.booproj

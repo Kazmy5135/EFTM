@@ -1,0 +1,22 @@
+using System.Collections.Generic;
+using UnitySkills;
+
+public static class __FakeUnityCLIStartUnitySkillsServer
+{
+    public static object Execute()
+    {
+        var wasRunning = SkillsHttpServer.IsRunning;
+
+        SkillsHttpServer.Start(8090, true);
+
+        return new Dictionary<string, object>
+        {
+            ["mode"] = "unityskills_server_recovery",
+            ["wasRunning"] = wasRunning,
+            ["isRunning"] = SkillsHttpServer.IsRunning,
+            ["url"] = SkillsHttpServer.Url,
+            ["port"] = SkillsHttpServer.Port,
+            ["loopbackUrl"] = $"http://127.0.0.1:{SkillsHttpServer.Port}/"
+        };
+    }
+}

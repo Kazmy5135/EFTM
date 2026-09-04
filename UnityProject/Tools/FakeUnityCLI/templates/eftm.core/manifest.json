@@ -1,0 +1,18 @@
+{
+  "template_package_id": "eftm.core",
+  "manifest_version": "1.0",
+  "publisher": "eftm",
+  "templates": [
+    {
+      "id": "eftm.editor-state",
+      "source": "editor-state.cs.txt",
+      "sha256": "2e1270901d74fc2400a036bccb04616d523d96f5a9c935dff4c06dc80f34e71e",
+      "summary": "Read the running EFTM Unity Editor state",
+      "required_capabilities": ["roslyn_exec", "structured_result_json"],
+      "mutates_project": false,
+      "idempotent": true,
+      "replay_after_reload": false,
+      "parameters_schema": {}
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "manifest_version": "1.0",
+  "files": [
+    "package.json",
+    "package-files.json",
+    "Editor/FakeUnityCLI.EditorBridge.asmdef",
+    "Editor/BridgeBootstrap.cs",
+    "Editor/LogCaptureBridge.cs",
+    "Editor/EditorDelegateBridge.cs",
+    "Editor/RoslynExecutor.cs",
+    "Editor/ResultJson.cs",
+    "Editor/EditorOnlineOperations.cs",
+    "Editor/OnlineProviderRegistry.cs",
+    "Editor/LiveBridgeUpdate.cs",
+    "Editor/RoslynRequestBridge.cs"
+  ]
+}

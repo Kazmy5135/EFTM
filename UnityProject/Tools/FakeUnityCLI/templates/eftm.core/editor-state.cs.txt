@@ -1,0 +1,20 @@
+using System.Collections.Generic;
+using UnityEditor;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+
+public static class __FakeUnityCLIEditorState
+{
+    public static object Execute()
+    {
+        return new Dictionary<string, object>
+        {
+            ["unityVersion"] = Application.unityVersion,
+            ["activeScene"] = SceneManager.GetActiveScene().name,
+            ["isPlaying"] = EditorApplication.isPlaying,
+            ["isCompiling"] = EditorApplication.isCompiling,
+            ["isUpdating"] = EditorApplication.isUpdating,
+            ["selectionCount"] = Selection.objects == null ? 0 : Selection.objects.Length
+        };
+    }
+}

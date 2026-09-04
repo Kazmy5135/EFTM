@@ -1,0 +1,23 @@
+fileFormatVersion: 2
+guid: 26781d73bc16801498f99503c04a76be
+TrueTypeFontImporter:
+  internalIDToNameTable: []
+  externalObjects: {}
+  serializedVersion: 4
+  fontSize: 16
+  forceTextureCase: -2
+  characterSpacing: 0
+  characterPadding: 1
+  includeFontData: 1
+  fontNames:
+  - UnitySkills CJK
+  fallbackFontReferences: []
+  customCharacters:
+  fontRenderingMode: 0
+  ascentCalculationMode: 1
+  useLegacyBoundsCalculation: 0
+  shouldRoundAdvanceValue: 1
+  fontFamilyAliases: []
+  userData:
+  assetBundleName:
+  assetBundleVariant:

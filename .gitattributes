@@ -29,3 +29,17 @@
 *.ttf binary
 *.otf binary
 *.dll binary
+
+# FakeUnityCLI cross-platform runtimes are large release binaries.
+UnityProject/Tools/FakeUnityCLI/runtime/windows-x64/fuc.exe filter=lfs diff=lfs merge=lfs -text
+UnityProject/Tools/FakeUnityCLI/runtime/linux-x64/fuc filter=lfs diff=lfs merge=lfs -text
+UnityProject/Tools/FakeUnityCLI/runtime/macos-arm64/fuc filter=lfs diff=lfs merge=lfs -text
+
+# Preserve vendored Unity tooling verbatim; upstream files contain intentional trailing spaces.
+UnityProject/.agents/skills/unity-skills/** whitespace=-trailing-space,-space-before-tab
+UnityProject/Assets/Plugin3rd.meta whitespace=-trailing-space,-space-before-tab
+UnityProject/Assets/Plugin3rd/com.besty.unity-skills.meta whitespace=-trailing-space,-space-before-tab
+UnityProject/Assets/Plugin3rd/com.besty.unity-skills/** whitespace=-trailing-space,-space-before-tab
+UnityProject/Assets/Plugin3rd/FavoritesWindow.meta whitespace=-trailing-space,-space-before-tab
+UnityProject/Assets/Plugin3rd/FavoritesWindow/** whitespace=-trailing-space,-space-before-tab
+UnityProject/Packages/com.fakeunity.cli.editorbridge/** whitespace=-trailing-space,-space-before-tab
