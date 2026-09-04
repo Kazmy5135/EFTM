@@ -10,3 +10,7 @@
 ## 当前决策
 
 - [ADR-001 单仓库三工作区布局](ADR/ADR-001-monorepo-workspace-layout.md)
+
+## 当前技术规格
+
+- [战斗模块 V1 Unity 技术设计](CombatFoundationV1TechnicalDesign.md)（accepted）
