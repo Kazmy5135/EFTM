@@ -166,36 +166,7 @@ namespace EFTM.Editor
 
         private static void CreateEnvironment()
         {
-            CreateCube("Floor", new Vector3(0f, -0.12f, 10f), new Vector3(4f, 0.24f, 24f));
-            CreateCube("Ceiling", new Vector3(0f, 3.12f, 10f), new Vector3(4f, 0.24f, 24f));
-            CreateCube("LeftWall", new Vector3(-2f, 1.50f, 10f), new Vector3(0.24f, 3f, 24f));
-            CreateCube("RightWall", new Vector3(2f, 1.50f, 10f), new Vector3(0.24f, 3f, 24f));
-            CreateCube("FarWall", new Vector3(0f, 1.50f, 22f), new Vector3(4f, 3f, 0.24f));
-            CreateCube("NearCover", new Vector3(1.64f, 1.50f, -0.02f), new Vector3(2.70f, 3.40f, 0.32f));
-            CreateCube("DoorFrame", new Vector3(0.24f, 1.50f, -0.02f), new Vector3(0.18f, 3.40f, 0.46f));
-
-            for (var index = 0; index < 6; index++)
-            {
-                var z = 2.6f + index * 3.25f;
-                CreateCube($"CeilingBeam-{index + 1}", new Vector3(0f, 2.92f, z), new Vector3(3.72f, 0.12f, 0.18f));
-            }
-
-            var lightObject = new GameObject("DirectionalLight");
-            var light = lightObject.AddComponent<Light>();
-            light.type = LightType.Directional;
-            light.color = new Color(0.86f, 0.94f, 1f);
-            light.intensity = 1.25f;
-            light.shadows = LightShadows.Soft;
-            lightObject.transform.rotation = Quaternion.Euler(42f, -28f, 0f);
-        }
-
-        private static GameObject CreateCube(string name, Vector3 position, Vector3 scale)
-        {
-            var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            cube.name = name;
-            cube.transform.SetPositionAndRotation(position, Quaternion.identity);
-            cube.transform.localScale = scale;
-            return cube;
+            WarehouseEnvironmentBuilder.CreateEnvironment();
         }
 
         private static void ConfigureRenderSettings()

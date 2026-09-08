@@ -1,0 +1,279 @@
+{
+  "units": "meters",
+  "colliders": [
+    {
+      "name": "Floor",
+      "position": [
+        0,
+        -0.12,
+        10
+      ],
+      "size": [
+        4,
+        0.24,
+        24
+      ]
+    },
+    {
+      "name": "LeftWall",
+      "position": [
+        -2,
+        1.5,
+        10
+      ],
+      "size": [
+        0.24,
+        3,
+        24
+      ]
+    },
+    {
+      "name": "RightWall",
+      "position": [
+        2,
+        1.5,
+        10
+      ],
+      "size": [
+        0.24,
+        3,
+        24
+      ]
+    },
+    {
+      "name": "FarWall",
+      "position": [
+        0,
+        1.5,
+        22
+      ],
+      "size": [
+        4,
+        3,
+        0.24
+      ]
+    },
+    {
+      "name": "NearCover",
+      "position": [
+        1.14,
+        1.5,
+        -0.02
+      ],
+      "size": [
+        1.7,
+        3,
+        0.32
+      ]
+    },
+    {
+      "name": "DoorFrame",
+      "position": [
+        0.24,
+        1.5,
+        -0.02
+      ],
+      "size": [
+        0.18,
+        3,
+        0.46
+      ]
+    },
+    {
+      "name": "Ceiling",
+      "position": [
+        0,
+        3.12,
+        10
+      ],
+      "size": [
+        4,
+        0.24,
+        24
+      ]
+    },
+    {
+      "name": "CrateTallLower",
+      "position": [
+        -1.12,
+        0.55,
+        17.7
+      ],
+      "size": [
+        1.03,
+        1.125,
+        1.05
+      ]
+    },
+    {
+      "name": "CrateTallUpper",
+      "position": [
+        -1.12,
+        1.105,
+        17.7
+      ],
+      "size": [
+        1.03,
+        2.235,
+        1.05
+      ]
+    },
+    {
+      "name": "CrateMid",
+      "position": [
+        1.12,
+        0.53,
+        15.4
+      ],
+      "size": [
+        1.01,
+        1.085,
+        1.0
+      ]
+    },
+    {
+      "name": "CrateLow",
+      "position": [
+        1.1,
+        0.315,
+        19.8
+      ],
+      "size": [
+        1.05,
+        0.655,
+        0.87
+      ]
+    },
+    {
+      "name": "ConcreteCover",
+      "position": [
+        1.06,
+        0.48,
+        12.4
+      ],
+      "size": [
+        1.11,
+        0.96,
+        0.74
+      ]
+    },
+    {
+      "name": "TallCabinet",
+      "position": [
+        -1.42,
+        0.91,
+        15.0
+      ],
+      "size": [
+        0.63,
+        1.82,
+        0.78
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "WH_Concrete",
+      "color": [
+        0.24,
+        0.245,
+        0.23
+      ],
+      "roughness": 0.8,
+      "metallic": 0.0,
+      "albedo": "WH_Concrete_Albedo.png",
+      "normal": "WH_Concrete_Normal.png"
+    },
+    {
+      "name": "WH_Floor",
+      "color": [
+        0.19,
+        0.2,
+        0.185
+      ],
+      "roughness": 0.78,
+      "metallic": 0.0,
+      "albedo": "WH_Floor_Albedo.png",
+      "normal": "WH_Floor_Normal.png"
+    },
+    {
+      "name": "WH_Paint",
+      "color": [
+        0.075,
+        0.108,
+        0.085
+      ],
+      "roughness": 0.82,
+      "metallic": 0.0,
+      "albedo": "WH_Paint_Albedo.png",
+      "normal": "WH_Paint_Normal.png"
+    },
+    {
+      "name": "WH_Wood",
+      "color": [
+        0.16,
+        0.105,
+        0.055
+      ],
+      "roughness": 0.84,
+      "metallic": 0.0,
+      "albedo": "WH_Wood_Albedo.png",
+      "normal": "WH_Wood_Normal.png"
+    },
+    {
+      "name": "WH_Steel",
+      "color": [
+        0.1,
+        0.12,
+        0.115
+      ],
+      "roughness": 0.52,
+      "metallic": 0.65,
+      "albedo": "WH_Steel_Albedo.png",
+      "normal": "WH_Steel_Normal.png"
+    },
+    {
+      "name": "WH_DarkMetal",
+      "color": [
+        0.035,
+        0.045,
+        0.042
+      ],
+      "roughness": 0.48,
+      "metallic": 0.7
+    },
+    {
+      "name": "WH_Rust",
+      "color": [
+        0.2,
+        0.115,
+        0.062
+      ],
+      "roughness": 0.85,
+      "metallic": 0.25
+    },
+    {
+      "name": "WH_SafetyPaint",
+      "color": [
+        0.34,
+        0.27,
+        0.12
+      ],
+      "roughness": 0.9,
+      "metallic": 0
+    },
+    {
+      "name": "WH_Lamp",
+      "color": [
+        0.74,
+        0.82,
+        0.78
+      ],
+      "roughness": 0.32,
+      "metallic": 0
+    }
+  ],
+  "previewOnlyAnchors": [],
+  "meshCount": 21,
+  "triangles": 41168
+}

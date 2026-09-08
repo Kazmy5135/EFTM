@@ -1,4 +1,4 @@
-import { CONTAINERS, cloneItems, commitPose, evaluatePlacement, rotatePose } from './inventory-model.js';
+import { CONTAINERS, cloneItems, commitPose, evaluatePlacement, getDraggedOrigin, rotatePose } from './inventory-model.js';
 import { INITIAL_ITEMS } from './inventory-fixture.js';
 
 const ITEM_COLORS = {
@@ -9,7 +9,6 @@ const ITEM_COLORS = {
   supply: '#b4a86a',
 };
 const DRAG_THRESHOLD = 12;
-const FINGER_LIFT = 28;
 
 const app = document.querySelector('#app');
 const stateLabel = document.querySelector('#stateLabel');
@@ -43,8 +42,6 @@ function renderItem(item, invalidIds) {
   element.dataset.rotation = String(pose.rotation || 0);
   element.style.setProperty('--item-color', ITEM_COLORS[item.kind]);
   element.style.setProperty('--item-rotation', `${pose.rotation || 0}deg`);
-  element.style.gridColumn = `${pose.x + 1} / span ${pose.width}`;
-  element.style.gridRow = `${pose.y + 1} / span ${pose.height}`;
   element.innerHTML = `<strong>${item.name}</strong><small>${pose.width} × ${pose.height}</small>`;
   return element;
 }
@@ -60,7 +57,11 @@ function render() {
   for (const grid of grids.values()) grid.replaceChildren();
   for (const item of items) {
     const pose = getVisualItem(item);
-    grids.get(pose.container)?.append(renderItem(item, invalidIds));
+    const grid = grids.get(pose.container);
+    if (!grid) continue;
+    const element = renderItem(item, invalidIds);
+    grid.append(element);
+    positionGridElement(element, grid, pose);
   }
 
   if (pendingRotation) {
@@ -90,10 +91,10 @@ function cancelPendingRotation({ announce = false } = {}) {
   return true;
 }
 
-function rotateItem(itemId) {
+function rotateItem(itemId, pivotCell) {
   const committed = getCommittedItem(itemId);
   const base = pendingRotation?.id === itemId ? pendingRotation : committed;
-  const candidate = rotatePose(base);
+  const candidate = rotatePose(base, pivotCell);
   const result = evaluatePlacement(items, candidate);
 
   if (result.valid) {
@@ -123,11 +124,13 @@ function handlePointerDown(event) {
   const pose = pendingRotation?.id === itemId ? pendingRotation : committed;
   const freshElement = document.querySelector(`[data-item-id="${itemId}"]`);
   const itemRect = freshElement.getBoundingClientRect();
+  const pivotCell = getPressedCell(event.clientX, event.clientY, itemRect, pose);
 
   gesture = {
     pointerId: event.pointerId,
     itemId,
     basePose: { ...pose },
+    pivotCell,
     startX: event.clientX,
     startY: event.clientY,
     offsetX: event.clientX - itemRect.left,
@@ -167,8 +170,12 @@ function startDrag() {
 
 function updateDrag(clientX, clientY) {
   const appRect = app.getBoundingClientRect();
-  const ghostLeft = clientX - gesture.offsetX;
-  const ghostTop = clientY - gesture.offsetY - FINGER_LIFT;
+  const origin = getDraggedOrigin(
+    { x: clientX, y: clientY },
+    { x: gesture.offsetX, y: gesture.offsetY },
+  );
+  const ghostLeft = origin.x;
+  const ghostTop = origin.y;
   gesture.ghost.style.left = `${ghostLeft - appRect.left}px`;
   gesture.ghost.style.top = `${ghostTop - appRect.top}px`;
 
@@ -207,6 +214,25 @@ function findTargetGrid(x, y) {
 }
 
 function snapToGrid(container, grid, left, top, pose) {
+  const metrics = getGridMetrics(grid, container);
+
+  return {
+    ...pose,
+    container,
+    x: Math.round((left - metrics.rect.left - metrics.paddingLeft) / metrics.strideX),
+    y: Math.round((top - metrics.rect.top - metrics.paddingTop) / metrics.strideY),
+  };
+}
+
+function createPlacementPreview(grid, candidate, evaluation) {
+  const preview = document.createElement('div');
+  preview.className = `placement-preview ${evaluation.valid ? 'is-valid' : 'is-invalid'}`;
+  grid.append(preview);
+  positionGridElement(preview, grid, candidate);
+  gesture.preview = preview;
+}
+
+function getGridMetrics(grid, containerName = grid.dataset.container) {
   const rect = grid.getBoundingClientRect();
   const style = getComputedStyle(grid);
   const gapX = Number.parseFloat(style.columnGap) || 0;
@@ -215,25 +241,35 @@ function snapToGrid(container, grid, left, top, pose) {
   const paddingTop = Number.parseFloat(style.paddingTop) || 0;
   const paddingRight = Number.parseFloat(style.paddingRight) || 0;
   const paddingBottom = Number.parseFloat(style.paddingBottom) || 0;
-  const definition = CONTAINERS[container];
+  const definition = CONTAINERS[containerName];
   const cellWidth = (rect.width - paddingLeft - paddingRight - gapX * (definition.columns - 1)) / definition.columns;
   const cellHeight = (rect.height - paddingTop - paddingBottom - gapY * (definition.rows - 1)) / definition.rows;
-
   return {
-    ...pose,
-    container,
-    x: Math.round((left - rect.left - paddingLeft) / (cellWidth + gapX)),
-    y: Math.round((top - rect.top - paddingTop) / (cellHeight + gapY)),
+    rect,
+    paddingLeft,
+    paddingTop,
+    cellWidth,
+    cellHeight,
+    gapX,
+    gapY,
+    strideX: cellWidth + gapX,
+    strideY: cellHeight + gapY,
   };
 }
 
-function createPlacementPreview(grid, candidate, evaluation) {
-  const preview = document.createElement('div');
-  preview.className = `placement-preview ${evaluation.valid ? 'is-valid' : 'is-invalid'}`;
-  preview.style.gridColumn = `${candidate.x + 1} / span ${candidate.width}`;
-  preview.style.gridRow = `${candidate.y + 1} / span ${candidate.height}`;
-  grid.append(preview);
-  gesture.preview = preview;
+function positionGridElement(element, grid, pose) {
+  const metrics = getGridMetrics(grid);
+  element.style.left = `${metrics.paddingLeft + pose.x * metrics.strideX}px`;
+  element.style.top = `${metrics.paddingTop + pose.y * metrics.strideY}px`;
+  element.style.width = `${pose.width * metrics.cellWidth + (pose.width - 1) * metrics.gapX}px`;
+  element.style.height = `${pose.height * metrics.cellHeight + (pose.height - 1) * metrics.gapY}px`;
+}
+
+function getPressedCell(clientX, clientY, itemRect, pose) {
+  return {
+    column: Math.min(pose.width - 1, Math.max(0, Math.floor((clientX - itemRect.left) / (itemRect.width / pose.width)))),
+    row: Math.min(pose.height - 1, Math.max(0, Math.floor((clientY - itemRect.top) / (itemRect.height / pose.height)))),
+  };
 }
 
 function markConflicts(conflictIds) {
@@ -276,7 +312,7 @@ function handlePointerEnd(event, cancelled = false) {
   }
 
   cleanupGesture();
-  if (!cancelled) rotateItem(completedGesture.itemId);
+  if (!cancelled) rotateItem(completedGesture.itemId, completedGesture.pivotCell);
 }
 
 function cleanupGesture() {

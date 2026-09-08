@@ -7,12 +7,30 @@ export function cloneItems(items) {
   return items.map((item) => ({ ...item }));
 }
 
-export function rotatePose(pose) {
+export function rotatePose(pose, pivotCell = { column: 0, row: 0 }) {
+  const { column, row } = pivotCell;
+  if (!Number.isInteger(column) || !Number.isInteger(row)
+    || column < 0 || column >= pose.width
+    || row < 0 || row >= pose.height) {
+    throw new RangeError('Rotation pivot must be one occupied 1x1 cell of the item.');
+  }
+
+  const rotatedPivotColumn = pose.height - 1 - row;
+  const rotatedPivotRow = column;
   return {
     ...pose,
+    x: pose.x + column - rotatedPivotColumn,
+    y: pose.y + row - rotatedPivotRow,
     width: pose.height,
     height: pose.width,
     rotation: ((pose.rotation || 0) + 90) % 360,
+  };
+}
+
+export function getDraggedOrigin(pointer, grabOffset) {
+  return {
+    x: pointer.x - grabOffset.x,
+    y: pointer.y - grabOffset.y,
   };
 }
 

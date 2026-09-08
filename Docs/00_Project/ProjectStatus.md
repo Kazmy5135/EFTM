@@ -2,13 +2,14 @@
 title: 当前项目状态
 document_id: PROJECT-STATUS
 status: accepted
-last_updated: 2026-09-04
+last_updated: 2026-09-07
 ---
 
 # 当前项目状态
 
 - 当前阶段：战斗模块 V1 的设计、H5 验证和 Unity 技术基线均已批准；Unity U1 确定性领域模型与 U2 场景、输入、摄像机切片已完成自动化门禁。
 - Unity 基线：`2022.3.62f2`。
+- 场景美术：工作项 007 已按设计者确认的效果图完成 Blender 仓库场景与 Unity 环境替换；原有摄像机和输入保留。目标 Unity 版本 EditMode 19/19、PlayMode 7/7，以及尺度、主要枪线遮挡和框架检查通过；手机视觉、体感与性能待验收，详见 `Docs/30_Iterations/007-blender-combat-scene/Validation.md`。
 - 仓库布局：`Docs/`、按需启用的 `H5Prototype/` 与正式 `UnityProject/` 三个平级工作区；H5 不属于通用开发门禁。
 - 已建立：运行时、编辑器、EditMode 测试程序集，启动与服务生命周期骨架，文档治理框架。
 - 已初步确定：手机竖屏、单手为主、多人实时搜打撤；核心交互由剪刀石头布式半回合枪战（情报辅助预瞄、有限手动调瞄和压枪、按住连续开火）与单手格子背包搜索构成；首个完整 Demo 使用机器人 PMC 验证核心体验。
