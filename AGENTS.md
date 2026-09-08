@@ -12,6 +12,14 @@
 
 混合任务先拆清设计语义、验证证据和正式实现，不让任一工作区静默覆盖另一工作区的事实。
 
+## Unity 开发工具路由
+
+- 路由到 Unity 开发后，状态读取、场景/资产操作、编译、测试与构建优先使用 FakeUnityCLI，不默认控制用户桌面。
+- CLI 已随项目部署，Windows 入口为 `UnityProject/Tools/FakeUnityCLI/runtime/windows-x64/fuc.exe`；不能仅因 PATH 中找不到命令就判定未安装。
+- 先通过 `unity probe`、`editor status` 与命令 `--help` 确认能力；正在运行的 Unity 优先使用在线 Editor Bridge，不绕过离线写锁。
+- 只有 CLI 确实无法完成且没有合适非桌面替代方式时，才使用桌面控制，并先向用户说明具体限制与原因。
+- 普通源代码编辑仍遵循文件编辑规则；CLI 优先不改变操作授权、设计门禁或资产安全约束。具体命令与局部规则见 `UnityProject/AGENTS.md`。
+
 ## H5 原型的触发规则
 
 - H5 是可选验证工具，不是设计或 Unity 开发的通用门禁。

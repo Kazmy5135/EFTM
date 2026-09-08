@@ -7,6 +7,51 @@ namespace EFTM.Tests.EditMode
 {
     public sealed class CombatFoundationModelTests
     {
+        [TestCase(30)]
+        [TestCase(60)]
+        public void FrameRatesKeepExposureGateAndBoundedShotCadence(int hz)
+        {
+            var model=CreateModel();
+            var events=new List<CombatEvent>();
+            var step=1f/hz;
+            var shots=0;
+            var firstTime=-1f;
+            var previousTime=-1f;
+            model.Execute(new CombatCommand(CombatCommandType.ToggleTrueAim));
+            model.Execute(new CombatCommand(CombatCommandType.FirePressed));
+            for(var i=1;i<=hz*3;i++)
+            {
+                model.Tick(step); events.Clear();model.CopyPendingEventsTo(events);
+                foreach(var evt in events)
+                {
+                    if(evt.Type!=CombatEventType.ShotRequested) continue;
+                    Assert.That(model.Snapshot.PeekProgress,Is.EqualTo(1f));
+                    var time=i*step;
+                    if(shots==0) firstTime=time;
+                    else Assert.That(time-previousTime,Is.InRange(.108f-step-.0001f,.108f+step+.0001f));
+                    previousTime=time;shots++;
+                }
+            }
+            Assert.That(firstTime,Is.InRange(.3f,.3f+step*2.01f));
+            Assert.That(shots,Is.InRange(24,25));
+        }
+
+        [Test]
+        public void EachShotCarriesAimBeforeItsOwnImpulseIncludingCatchupShots()
+        {
+            var model=CreateModel();
+            model.Execute(new CombatCommand(CombatCommandType.ToggleTrueAim));AdvanceToHolding(model);
+            model.Execute(new CombatCommand(CombatCommandType.FirePressed));
+            model.Tick(.001f);
+            var events=new List<CombatEvent>();model.CopyPendingEventsTo(events);
+            var first=events.Find(e=>e.Type==CombatEventType.ShotRequested);
+            Assert.That(first.ShotPitch,Is.Zero);
+            Assert.That(model.Snapshot.RecoilPitchDegrees,Is.GreaterThan(first.ShotPitch));
+            model.Tick(.24f);events.Clear();model.CopyPendingEventsTo(events);
+            var shots=events.FindAll(e=>e.Type==CombatEventType.ShotRequested);
+            Assert.That(shots.Count,Is.EqualTo(2));
+            Assert.That(shots[1].ShotPitch,Is.GreaterThan(shots[0].ShotPitch));
+        }
         [Test]
         public void InitialSnapshot_IsFullyHiddenAndHasNoIntel()
         {

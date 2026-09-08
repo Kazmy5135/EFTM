@@ -34,6 +34,8 @@
 
 ## 工作规则
 
+- Unity 状态读取、场景/资产操作、编译与验证优先使用 FakeUnityCLI；只有 CLI 确实无法完成的检查才考虑桌面控制，并先说明原因。普通源代码编辑继续遵循仓库文件编辑规则。
+- FakeUnityCLI 已随仓库部署，不依赖 PATH：从仓库根运行 `./UnityProject/Tools/FakeUnityCLI/runtime/windows-x64/fuc.exe --project ./UnityProject --json editor status`。先用 `unity probe` / `editor status` 检查版本与在线状态；命令契约用 `<domain> <verb> --help` 查询。打开的 Unity 用 `editor exec` / `editor refresh` 等在线桥接，不强行绕过离线写锁。
 - 修改 Unity 资产时保留并提交对应 `.meta`，不手写、伪造或随意替换 GUID。
 - Unity 生成目录 `Library`、`Logs`、`TestResults` 和本地 `UserSettings` 不提交。
 - 不直接修改生成代码或导入产物；修改其权威源后重新生成。

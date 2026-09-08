@@ -12,7 +12,7 @@
 
 1. 纯设计任务进入 Planning Design Agent。
 2. 只有设计者明确要求 H5 验证时，才从策划工作项分支到 H5 Prototype Agent。
-3. 正式 Unity 实现进入 Unity Development Agent，不默认要求先有 H5。
+3. 正式 Unity 实现进入 Unity Development Agent，不默认要求先有 H5；工具执行遵循根 `AGENTS.md` 的 Unity 开发工具路由：优先 FakeUnityCLI，桌面控制仅作明确说明原因后的兜底。
 4. 跨层冲突必须回到拥有该事实的角色处理，不静默跨权修改。
 
 ## 策划到 H5 的可选交接

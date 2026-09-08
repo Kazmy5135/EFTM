@@ -3,6 +3,7 @@ using EFTM.Combat.Foundation;
 using EFTM.Combat.Presentation;
 using UnityEngine;
 using UnityEngine.UIElements;
+using UnityEngine.TextCore.Text;
 
 namespace EFTM.Combat.Input
 {
@@ -11,6 +12,8 @@ namespace EFTM.Combat.Input
     public sealed class CombatInputView : MonoBehaviour
     {
         private const int NoPointer = int.MinValue;
+        [SerializeField] private FontAsset uiFont;
+        public void ConfigureFont(FontAsset font) => uiFont = font;
 
         private UIDocument document;
         private PanelSettings runtimePanelSettings;
@@ -22,8 +25,12 @@ namespace EFTM.Combat.Input
         private Button fakePeekButton;
         private Button fireButton;
         private Label statusLabel;
+        private Label intelLabel;
+        private Label reticle;
         private Rect lastSafeArea;
         private int trueAimPointerId = NoPointer;
+        private int lastFeedback = -1;
+        private int lastUiState = -1;
 
         public CombatInputController Controller => controller;
 
@@ -91,28 +98,47 @@ namespace EFTM.Combat.Input
             }
 
             UpdateSafeArea();
+            var uiState = (int)snapshot.Mode | ((int)snapshot.Phase << 3) |
+                (snapshot.FireHeld ? 64 : 0) | (snapshot.Intel.HasIntel ? 128 : 0);
+            if (uiState == lastUiState) return;
+            lastUiState = uiState;
 
             var isTrueAim = snapshot.Mode == PeekMode.TrueAim && snapshot.Phase != PeekPhase.Hidden;
             var isReturning = snapshot.Phase == PeekPhase.Returning;
             fireButton.style.display = isTrueAim && !isReturning ? DisplayStyle.Flex : DisplayStyle.None;
             fireButton.text = snapshot.FireHeld
-                ? "开火中"
-                : snapshot.FireArmed
-                    ? "已预备"
-                    : "按住开火";
+                ? (snapshot.PeekProgress < 1f ? "已预备" : "开火中") : "按住开火";
             fireButton.EnableInClassList("is-held", snapshot.FireHeld);
 
             trueAimButton.text = isTrueAim && !isReturning ? "返回掩体" : "真架枪";
             trueAimButton.EnableInClassList("is-active", isTrueAim && !isReturning);
-            fakePeekButton.SetEnabled(!isTrueAim && !isReturning);
+            fakePeekButton.SetEnabled(!isTrueAim);
 
             statusLabel.text = BuildStatus(snapshot);
+            intelLabel.text = snapshot.Intel.HasIntel ? "已预瞄 · 最后观察位置（可能过期）" : "没有敌人信息";
+        }
+
+        public void ApplyHitFeedback(bool visible, bool hitTarget)
+        {
+            if (reticle == null) return;
+            var feedback = visible ? (hitTarget ? 2 : 1) : 0;
+            if (feedback == lastFeedback) return;
+            lastFeedback = feedback;
+            reticle.text = visible && hitTarget ? "×" : "+";
+            reticle.style.color = visible ? (hitTarget ? new Color(1f,.32f,.2f) : new Color(1f,.82f,.35f)) : Color.white;
         }
 
         public void ReleaseAllInput()
         {
             trueAimPointerId = NoPointer;
             controller?.ReleaseAll();
+            for (var pointer = 0; pointer < PointerId.maxPointers; pointer++)
+            {
+                ReleasePointerIfCaptured(trueAimButton, pointer);
+                ReleasePointerIfCaptured(fakePeekButton, pointer);
+                ReleasePointerIfCaptured(fireButton, pointer);
+                ReleasePointerIfCaptured(aimSurface, pointer);
+            }
         }
 
         private void OnDisable()
@@ -131,6 +157,8 @@ namespace EFTM.Combat.Input
             }
 
             safeRoot = null;
+            lastUiState = lastFeedback = -1;
+            lastSafeArea = default;
             aimSurface = null;
             trueAimButton = null;
             fakePeekButton = null;
@@ -170,6 +198,7 @@ namespace EFTM.Combat.Input
             }
 
             root.Clear();
+            if (uiFont != null) root.style.unityFontDefinition = new StyleFontDefinition(uiFont);
             root.style.position = Position.Absolute;
             root.style.left = 0f;
             root.style.right = 0f;
@@ -197,6 +226,27 @@ namespace EFTM.Combat.Input
             statusLabel.style.fontSize = 34f;
             statusLabel.style.color = new Color(0.90f, 0.96f, 0.94f, 0.92f);
             safeRoot.Add(statusLabel);
+            statusLabel.pickingMode = PickingMode.Ignore;
+            intelLabel = new Label { name = "intel-status", pickingMode = PickingMode.Ignore };
+            intelLabel.style.position = Position.Absolute;
+            intelLabel.style.top = 98f;
+            intelLabel.style.left = 20f;
+            intelLabel.style.right = 20f;
+            intelLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
+            intelLabel.style.fontSize = 26f;
+            intelLabel.style.color = new Color(1f, .85f, .3f);
+            safeRoot.Add(intelLabel);
+            // Reticle is at full viewport center, not safe-area center (asymmetric notches).
+            reticle = new Label("+") { name = "reticle", pickingMode = PickingMode.Ignore };
+            reticle.style.position = Position.Absolute;
+            reticle.style.left = Length.Percent(50f);
+            reticle.style.top = Length.Percent(50f);
+            reticle.style.width = 60f; reticle.style.height = 60f;
+            reticle.style.marginLeft = -30f; reticle.style.marginTop = -30f;
+            reticle.style.fontSize = 48f;
+            reticle.style.unityTextAlign = TextAnchor.MiddleCenter;
+            reticle.style.color = Color.white;
+            root.Add(reticle);
 
             trueAimButton = CreateActionButton("true-aim", "真架枪", new Color(0.18f, 0.55f, 0.43f, 0.94f));
             trueAimButton.style.left = 54f;
@@ -233,6 +283,8 @@ namespace EFTM.Combat.Input
         private static Button CreateActionButton(string name, string text, Color background)
         {
             var button = new Button { name = name, text = text, focusable = false };
+            // We own pointer capture; Button's Clickable must not release it before PointerUp.
+            button.RemoveManipulator(button.clickable);
             button.style.position = Position.Absolute;
             button.style.backgroundColor = background;
             button.style.color = Color.white;
@@ -309,6 +361,7 @@ namespace EFTM.Combat.Input
             {
                 trueAimPointerId = NoPointer;
             }
+            ReleasePointerIfCaptured(trueAimButton, evt.pointerId);
         }
 
         private void OnTrueAimCaptureOut(PointerCaptureOutEvent evt)
@@ -396,6 +449,7 @@ namespace EFTM.Combat.Input
         private void OnPointerCancelled(PointerCancelEvent evt)
         {
             controller?.CancelPointer(evt.pointerId);
+            ReleasePointerIfCaptured(evt.currentTarget as VisualElement, evt.pointerId);
         }
 
         private void OnPointerCaptureOut(PointerCaptureOutEvent evt)
@@ -447,7 +501,7 @@ namespace EFTM.Combat.Input
 
         private static void ReleasePointerIfCaptured(VisualElement element, int pointerId)
         {
-            if (element.HasPointerCapture(pointerId))
+            if (element != null && element.HasPointerCapture(pointerId))
             {
                 element.ReleasePointer(pointerId);
             }

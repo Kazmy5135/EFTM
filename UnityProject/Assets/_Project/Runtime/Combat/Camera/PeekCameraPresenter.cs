@@ -11,6 +11,20 @@ namespace EFTM.Combat.Camera
         [SerializeField] private Transform exposedPose;
 
         public bool IsConfigured => cameraTransform != null && hiddenPose != null && exposedPose != null;
+        public Transform ViewTransform => cameraTransform;
+
+        public Vector2 AimAtWorldPoint(Vector3 point)
+        {
+            var local = Quaternion.Inverse(exposedPose.rotation) * (point - exposedPose.position);
+            return new Vector2(-Mathf.Atan2(local.x, local.z) * Mathf.Rad2Deg,
+                Mathf.Atan2(local.y, new Vector2(local.x, local.z).magnitude) * Mathf.Rad2Deg);
+        }
+
+        public Ray ShotRay(float yaw, float pitch)
+        {
+            return new Ray(exposedPose.position,
+                exposedPose.rotation * Quaternion.Euler(-pitch, -yaw, 0f) * Vector3.forward);
+        }
 
         public void Configure(Transform targetCamera, Transform hidden, Transform exposed)
         {
@@ -31,8 +45,8 @@ namespace EFTM.Combat.Camera
             var position = Vector3.LerpUnclamped(hiddenPose.position, exposedPose.position, progress);
             var baseRotation = Quaternion.SlerpUnclamped(hiddenPose.rotation, exposedPose.rotation, progress);
             var aimAndRecoil = Quaternion.Euler(
-                snapshot.AimPitchDegrees + snapshot.RecoilPitchDegrees,
-                snapshot.AimYawDegrees + snapshot.RecoilYawDegrees,
+                -(snapshot.AimPitchDegrees + snapshot.RecoilPitchDegrees) * progress,
+                -(snapshot.AimYawDegrees + snapshot.RecoilYawDegrees) * progress,
                 0f);
 
             cameraTransform.SetPositionAndRotation(position, baseRotation * aimAndRecoil);

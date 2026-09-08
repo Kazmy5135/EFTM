@@ -2,14 +2,14 @@
 title: 006 - Unity 战斗模块 V1 实现
 work_id: "006"
 work_type: development
-work_status: developing
+work_status: verifying
 change_id: null
 target_document_ids:
   - DESIGN-CORE-COMBAT
   - TECH-COMBAT-FOUNDATION-V1
   - PROJECT-STATUS
   - TRACEABILITY-REGISTER
-last_updated: 2026-09-04
+last_updated: 2026-09-08
 ---
 
 # 006 - Unity 战斗模块 V1 实现
@@ -42,7 +42,9 @@ U1 与 U2 已完成自动化门禁：
 - 摄像机由显式 Hidden/Exposed Pose 驱动位置、旋转、侧倾和瞄准偏移。
 - PointerCancel、捕获丢失、窗口失焦、应用暂停和组件禁用均进入安全释放与返回路径。
 
-下一切片为 U3，尚未开始：五点位、20 点真实遮挡可见性、最后位置情报和黄色透视剪影。射线命中、弹道与枪械表现继续由 U4 承担。
+U3/U4 已接入工作项 007 的仓库场景：五点位、20 点真实遮挡采样、旧世界位姿情报、黄色双 Pass 剪影、一次性预瞄、中心射线、连续射击和预热反馈池。摄像机角度符号已校正为上跳、下拖压枪；完全隐藏时镜头回到固定掩体 Pose，手动瞄准数值仍保留。
+
+当前进入 U5 verifying：自动化、Windows 开发构建和桌面交互检查可在现有环境推进；Android Build Support 未安装，且尚未指定/接入验收手机。不得用桌面测试替代设计者真机体验验收。详见 `Validation.md` 与 `DeviceValidation.md`。
 
 ## H5 局部门禁
 
@@ -62,7 +64,7 @@ U1 与 U2 已完成自动化门禁：
 
 - [x] proposed
 - [x] developing
-- [ ] verifying
+- [x] verifying
 - [ ] implemented
 - [ ] closed
 

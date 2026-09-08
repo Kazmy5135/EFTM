@@ -25,6 +25,7 @@ namespace EFTM.Combat.Foundation
         private int lastSeenPosition = -1;
         private float lastSeenAimYaw;
         private float lastSeenAimPitch;
+        private IntelWorldPose lastSeenWorldPose;
         private int currentEnemyPosition;
 
         private bool fireHeld;
@@ -69,7 +70,7 @@ namespace EFTM.Combat.Foundation
                 ghostVisible,
                 lastSeenPosition,
                 lastSeenAimYaw,
-                lastSeenAimPitch));
+                lastSeenAimPitch, lastSeenWorldPose));
 
         public void Execute(CombatCommand command)
         {
@@ -98,7 +99,8 @@ namespace EFTM.Combat.Foundation
             }
         }
 
-        public bool ObserveEnemy(float visibilityRatio, float aimYawDegrees, float aimPitchDegrees)
+        public bool ObserveEnemy(float visibilityRatio, float aimYawDegrees, float aimPitchDegrees,
+            IntelWorldPose worldPose = default)
         {
             if (mode != PeekMode.Fake || phase == PeekPhase.Hidden || phase == PeekPhase.Returning)
             {
@@ -116,6 +118,7 @@ namespace EFTM.Combat.Foundation
             hasPendingSnap = true;
             observedThisPeek = true;
             lastSeenPosition = currentEnemyPosition;
+            lastSeenWorldPose = worldPose;
             lastSeenAimYaw = Clamp(aimYawDegrees, -config.AimYawLimitDegrees, config.AimYawLimitDegrees);
             lastSeenAimPitch = Clamp(aimPitchDegrees, -config.AimPitchLimitDegrees, config.AimPitchLimitDegrees);
             if (changed)
@@ -376,6 +379,8 @@ namespace EFTM.Combat.Foundation
 
         private void FireShot()
         {
+            var shotYaw = aimYaw + recoilYaw;
+            var shotPitch = aimPitch + recoilPitch;
             burstShotCount++;
             var recoilPhase = RecoilPhaseForShot(burstShotCount);
             var verticalMultiplier = VerticalMultiplierForShot(burstShotCount, recoilPhase);
@@ -397,7 +402,7 @@ namespace EFTM.Combat.Foundation
                 CombatEventType.ShotRequested,
                 burstShotCount,
                 verticalImpulse,
-                horizontalImpulse));
+                horizontalImpulse, shotYaw, shotPitch));
         }
 
         private static float VerticalMultiplierForShot(int shotNumber, RecoilPhase recoilPhase)

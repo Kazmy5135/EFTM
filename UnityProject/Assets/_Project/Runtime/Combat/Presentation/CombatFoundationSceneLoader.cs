@@ -8,6 +8,9 @@ namespace EFTM.Combat.Presentation
         private const int CombatSceneBuildIndex = 1;
         private static bool loadRequested;
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetSession() => loadRequested = false;
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void LoadCombatSceneAfterBootstrap()
         {

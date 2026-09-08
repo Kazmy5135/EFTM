@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using EFTM.Combat.Camera;
 using EFTM.Combat.Foundation;
 using EFTM.Combat.Input;
+using EFTM.Combat.Targeting;
+using EFTM.Combat.Weapons;
 using UnityEngine;
 
 namespace EFTM.Combat.Presentation
@@ -14,6 +16,9 @@ namespace EFTM.Combat.Presentation
         [SerializeField] private CombatFoundationSettings settings;
         [SerializeField] private CombatInputView inputView;
         [SerializeField] private PeekCameraPresenter cameraPresenter;
+        [SerializeField] private CombatTargetingPresenter targeting;
+        [SerializeField] private CombatShotPresenter shots;
+        private UnityEngine.Camera viewCamera;
 
         private readonly List<CombatEvent> eventBuffer = new List<CombatEvent>(16);
         private CombatFoundationModel model;
@@ -24,6 +29,12 @@ namespace EFTM.Combat.Presentation
         public bool IsInitialized => initialized;
 
         public CombatFoundationModel Model => model;
+        public CombatTargetingPresenter Targeting => targeting;
+        public CombatShotPresenter Shots => shots;
+        public PeekCameraPresenter CameraPresenter => cameraPresenter;
+
+        public void ConfigureCombatAdapters(CombatTargetingPresenter targetPresenter, CombatShotPresenter shotPresenter)
+        { targeting = targetPresenter; shots = shotPresenter; }
 
         public void Configure(
             CombatFoundationSettings foundationSettings,
@@ -58,12 +69,21 @@ namespace EFTM.Combat.Presentation
                 return;
             }
 
-            model.Tick(Time.unscaledDeltaTime);
-            FlushEvents();
+            Step(Time.unscaledDeltaTime);
+        }
 
-            var snapshot = model.Snapshot;
-            cameraPresenter.Apply(snapshot);
-            inputView.ApplySnapshot(snapshot);
+        public void Step(float deltaSeconds)
+        {
+            if (!initialized) return;
+            shots.Tick(deltaSeconds);
+            model.Tick(deltaSeconds);
+            targeting.Apply(model.Snapshot);
+            cameraPresenter.Apply(model.Snapshot);
+            FlushEvents();
+            targeting.Observe(model, viewCamera, cameraPresenter);
+            FlushEvents();
+            inputView.ApplySnapshot(model.Snapshot);
+            inputView.ApplyHitFeedback(shots.HitFeedbackRemaining > 0f, shots.LastHitTarget);
         }
 
         private void OnApplicationPause(bool paused)
@@ -90,6 +110,7 @@ namespace EFTM.Combat.Presentation
             }
 
             EnterSafeReturn();
+            shots?.ResetFeedback();
             inputView?.Unbind();
             initialized = false;
             model = null;
@@ -113,6 +134,12 @@ namespace EFTM.Combat.Presentation
             {
                 failures.Add("PeekCameraPresenter or its explicit poses are missing.");
             }
+            if (targeting == null) failures.Add("CombatTargetingPresenter missing.");
+            else targeting.Validate(failures);
+            if (shots == null) failures.Add("CombatShotPresenter missing.");
+            else shots.Validate(failures);
+            viewCamera = cameraPresenter == null ? null : cameraPresenter.GetComponent<UnityEngine.Camera>();
+            if (viewCamera == null) failures.Add("Combat camera missing.");
 
             if (failures.Count > 0)
             {
@@ -125,6 +152,8 @@ namespace EFTM.Combat.Presentation
             try
             {
                 var config = settings.CreateConfig();
+                if (config.EnemyPositionCount != targeting.PositionCount)
+                    throw new InvalidOperationException("Configured enemy position count does not match the five scene slots.");
                 model = new CombatFoundationModel(
                     config,
                     new SystemRandomSource(settings.RandomSeed));
@@ -144,18 +173,23 @@ namespace EFTM.Combat.Presentation
             Application.targetFrameRate = 60;
 
             inputView.Bind(ExecuteCommand, () => model.Snapshot, settings);
+            targeting.ResetPresentation(model.Snapshot);
+            shots.Prewarm();
             cameraPresenter.Apply(model.Snapshot);
             initialized = true;
 
             Debug.Log($"[EFTM] Combat foundation initialized with random seed {settings.RandomSeed}.", this);
         }
 
-        private void ExecuteCommand(CombatCommand command)
+        public void ExecuteCommand(CombatCommand command)
         {
             model?.Execute(command);
             if (model != null)
             {
                 FlushEvents();
+                targeting.Apply(model.Snapshot);
+                cameraPresenter.Apply(model.Snapshot);
+                inputView.ApplySnapshot(model.Snapshot);
             }
         }
 
@@ -165,6 +199,8 @@ namespace EFTM.Combat.Presentation
             model.CopyPendingEventsTo(eventBuffer);
             for (var index = 0; index < eventBuffer.Count; index++)
             {
+                if (eventBuffer[index].Type == CombatEventType.ShotRequested)
+                    shots.Fire(eventBuffer[index], cameraPresenter, targeting.Actor != null);
                 EventRaised?.Invoke(eventBuffer[index]);
             }
         }

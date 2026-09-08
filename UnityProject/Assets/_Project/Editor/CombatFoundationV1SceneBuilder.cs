@@ -91,6 +91,7 @@ namespace EFTM.Editor
             var inputView = rootObject.AddComponent<CombatInputView>();
             var sceneRoot = rootObject.AddComponent<CombatFoundationSceneRoot>();
             sceneRoot.Configure(settings, inputView, cameraPresenter);
+            CombatFoundationAdaptersBuilder.Install(sceneRoot);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             EditorSceneManager.CloseScene(scene, true);

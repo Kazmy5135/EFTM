@@ -32,6 +32,12 @@ namespace EFTM.Editor
             }
 
             var failures = new List<string>();
+            foreach (var layer in new[] { "CombatOccluder", "CombatTarget", "CombatPresentation" })
+                if (LayerMask.NameToLayer(layer) < 8) failures.Add("Missing combat user layer: " + layer);
+            var playerSettings = new SerializedObject(AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/ProjectSettings.asset")[0]);
+            var inputHandler = playerSettings.FindProperty("activeInputHandler");
+            if (inputHandler == null || inputHandler.intValue != 0)
+                failures.Add("V1 UI Toolkit requires Active Input Handling = Input Manager (Old).");
 
             foreach (var relativePath in RequiredProjectPaths)
             {
