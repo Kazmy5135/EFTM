@@ -30,6 +30,7 @@ namespace EFTM.Combat.Presentation
         public event Action<CombatEvent> EventRaised;
 
         public bool IsInitialized => initialized;
+        public CombatFoundationSettings Settings => settings;
 
         public CombatFoundationModel Model => model;
         public CombatTargetingPresenter Targeting => targeting;
@@ -160,7 +161,11 @@ namespace EFTM.Combat.Presentation
             if (cameraPresenter != null)
             {
                 if (cameraPresenter.Transition == null) failures.Add("Dual-cover transition binding missing; migrate the scene before playing.");
-                else cameraPresenter.Transition.Validate(failures);
+                else
+                {
+                    cameraPresenter.Transition.ConfigureMotion(settings);
+                    cameraPresenter.Transition.Validate(failures);
+                }
             }
 
             if (failures.Count == 0 && cameraPresenter.Transition != null)
@@ -169,17 +174,8 @@ namespace EFTM.Combat.Presentation
                 nearPlaneRadius = viewCamera.nearClipPlane * Mathf.Sqrt(1f + tangent*tangent * (1f + viewCamera.aspect*viewCamera.aspect));
                 Physics.SyncTransforms();
                 targeting.ValidateCoverGeometry(viewCamera, cameraPresenter.Transition.Rig, failures);
-                for (var sideIndex = 0; sideIndex < 2; sideIndex++)
-                {
-                    var side = cameraPresenter.Transition.Rig.Get((CoverSide)sideIndex);
-                    for (var i = 0; i <= 64; i++)
-                    {
-                        var position = side.Position(i / 64f);
-                        if (!cameraPresenter.Transition.IsClear(position,
-                            position + side.hiddenPose.position - side.playerAnchor.position, nearPlaneRadius))
-                        { failures.Add("Cover path envelope blocked: " + side.side); break; }
-                    }
-                }
+                // The sphere encloses every near-plane corner for any roll around the view axis.
+                cameraPresenter.Transition.ValidateMotionPath(nearPlaneRadius, failures);
             }
 
             if (failures.Count > 0)

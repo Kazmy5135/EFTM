@@ -75,6 +75,7 @@ namespace EFTM.Editor
             if (player == null) player = new GameObject("PlayerRoot");
             var transition = player.GetComponent<CoverTransitionPresenter>() ?? player.AddComponent<CoverTransitionPresenter>();
             transition.Configure(rig, player.transform, LayerMask.GetMask("CombatOccluder"));
+            transition.ConfigureMotion(root.Settings);
             player.transform.SetPositionAndRotation(right.playerAnchor.position, right.playerAnchor.rotation);
             root.CameraPresenter.Configure(root.CameraPresenter.ViewTransform, right.hiddenPose, right.exposedPose);
             root.CameraPresenter.ConfigureCoverSwitch(transition);
@@ -106,19 +107,18 @@ namespace EFTM.Editor
             var transition = root.CameraPresenter.Transition;
             var view = root.CameraPresenter.GetComponent<UnityEngine.Camera>();
             var failures = new List<string>();
+            transition.ConfigureMotion(root.Settings);
             transition.Validate(failures); root.Targeting.Validate(failures); root.Shots.Validate(failures);
             Physics.SyncTransforms();
             if (failures.Count == 0) root.Targeting.ValidateCoverGeometry(view, transition.Rig, failures);
             var tangent = Mathf.Tan(view.fieldOfView * Mathf.Deg2Rad * .5f);
             var radius = view.nearClipPlane * Mathf.Sqrt(1f + tangent*tangent*(1f + view.aspect*view.aspect));
+            transition.ValidateMotionPath(radius, failures);
             foreach (var side in new[] { CoverSide.Right, CoverSide.Left })
             {
                 var data = transition.Rig.Get(side);
                 for (var i = 0; i <= 128; i++)
                 {
-                    var player = data.Position(i / 128f);
-                    if (!transition.IsClear(player, player + data.hiddenPose.position - data.playerAnchor.position, radius))
-                        failures.Add("Path envelope blocked: " + side + " sample " + i);
                     var peek = Vector3.Lerp(data.hiddenPose.position, data.exposedPose.position, i / 128f);
                     if (Physics.CheckSphere(peek, radius, LayerMask.GetMask("CombatOccluder"), QueryTriggerInteraction.Ignore))
                         failures.Add("Peek camera near plane blocked: " + side + " sample " + i);

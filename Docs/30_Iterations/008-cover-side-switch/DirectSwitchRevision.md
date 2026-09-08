@@ -19,3 +19,5 @@ last_updated: 2026-09-08
 生效文档：CoreCombatDesign.md、CombatFoundationV1TechnicalDesign.md。原 DesignProposal.md / TechnicalDesign.md 保留初次批准内容，后续引用以本修订及正式规格为准；旧测试/开发包证据不自动代表新节奏。
 
 实施结果：Unity 代码、场景绑定、静态状态字形与正式文档已同步；本修订 EditMode 37/37、PlayMode 25/25、Windows 构建通过。真实输入和手机舒适度仍待体验，详见 [验证记录](Validation.md)。本轮未提交或推送 Git。
+
+后续修订：2026-09-08 设计者批准 [移动侧探方案](MovingLeanProposal.md)。本记录的全程相机旋转恒定由前向固定、受控侧倾与头部偏移替代；立即移动、0.80s、无追踪及隐藏落位规则继续有效。

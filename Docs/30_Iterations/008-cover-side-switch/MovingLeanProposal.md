@@ -1,9 +1,9 @@
 ---
 title: 008 换边镜头优化：移动中侧探通道
 document_id: PROPOSAL-008-MOVING-LEAN
-status: review
-work_status: review
-authority: proposed-change-record
+status: accepted
+work_status: applied
+authority: approved-change-record
 last_updated: 2026-09-08
 ---
 
@@ -17,7 +17,7 @@ last_updated: 2026-09-08
 
 本稿将“歪头”解释为倾身侧探（Lean），主要通过视点偏移和侧倾表达。若目标是身体明显转向行进方向、头部扭回通道的侧视动作，那是另一种身体/头部 yaw 分离方案，需要单独比较；本轮推荐先验证移动侧探。
 
-本文件是待评审设计变更与技术影响分析。未修改 accepted 基线、Unity 实现、场景或模型；不代表体验已经通过。
+2026-09-08 设计者要求“确保工作区内容都提交上去之后，按照你的方式做一下”，批准本方案及技术落点实施。实施前工作区已提交推送为 `49ce351`，远端 master 已核对一致。本次同步正式设计与技术基线；批准实施不代表体验通过。
 
 ## 参考与证据边界
 
@@ -27,7 +27,7 @@ last_updated: 2026-09-08
 
 ## 当前实现为什么像平移
 
-本次核对工作区 HEAD 为 `5d0e3cb`；008 实现和正式文档存在未提交修改，以下结论来自当前工作区，不代表该 commit 已包含这些内容。
+提案时核对工作区 HEAD 为 `5d0e3cb`，当时 008 尚未提交；以下为提案时的诊断。实施前已完整提交推送为 `49ce351`，作为本轮可回退基线。
 
 | 当前事实 | 体验含义 |
 |---|---|
@@ -65,7 +65,7 @@ last_updated: 2026-09-08
 
 ## 规则影响与边界
 
-建议将“全程 Camera/PlayerRoot 旋转恒定”修订为“移动观察前向保持通道方向，镜头可产生受控侧倾及头部偏移，最终恢复隐藏姿态”。这是对现行技术验收条件的明确修改。
+将“全程 Camera/PlayerRoot 旋转恒定”修订为“移动观察前向保持通道方向，镜头可产生受控侧倾及头部偏移，最终恢复隐藏姿态”。这是对现行技术验收条件的明确修改。
 
 继续保持：完全隐藏才可换边、移动中输入互斥、不能开火、抵达不自动 Peek、总时长 0.80s、无额外观察停留、暂停冻结、落位后一次敌人换位、旧情报与跨侧预瞄规则。
 
@@ -73,7 +73,7 @@ last_updated: 2026-09-08
 
 ## 技术落点与评审后实施顺序
 
-1. 正式同步设计与技术差异，再实施；受影响基线为 `DESIGN-CORE-COMBAT`（`../../10_Design/CoreCombatDesign.md`）和 `TECH-COMBAT-FOUNDATION-V1`（`../../20_Technical/CombatFoundationV1TechnicalDesign.md`），均为 accepted、2026-09-08 工作区版本，适用 008，修订未提交。同步状态与追踪登记，不静默覆盖此前批准记录。
+1. 正式同步设计与技术差异，再实施；受影响基线为 `DESIGN-CORE-COMBAT`（`../../10_Design/CoreCombatDesign.md`）和 `TECH-COMBAT-FOUNDATION-V1`（`../../20_Technical/CombatFoundationV1TechnicalDesign.md`），均为 accepted、2026-09-08 工作区版本，适用 008，实施前基线 commit 为 `49ce351`。同步状态与追踪登记，不静默覆盖此前批准记录。
 2. 在 `CombatFoundationSettings` 增加换边表现参数：侧探距离、压低量、侧倾角和各自进度曲线；保持 Foundation 的战斗时序来源不变。
 3. `CoverTransitionPresenter` 由同一快照进度计算身体位置、头部偏移与侧倾，产出合成后的 CameraPose；`PeekCameraPresenter` 继续作为实际相机的唯一写入者。不要再叠加普通 Peek 进度。
 4. 曲线采用连续且边界速度平滑的分段插值，0 与 1 时所有附加量严格归零；暂停直接冻结快照，不用独立实时计时器。首帧产生位移、完整落位后才结算的顺序保持不变。
@@ -97,4 +97,4 @@ last_updated: 2026-09-08
 - 侧探峰值、整段运动和暂停恢复都不能穿掩体；相机碰撞失败仍执行当前安全停止行为，不能穿墙完成动作。
 - 手机竖屏常速来回换边，检查通道可读性与侧倾舒适度；自动化通过不代替设计者的体感判断。本工作项不新增 H5 验证门禁。
 
-本次交付仅为方案，尚未执行上述实现或体验验证。
+本次已获准实施，结果以 Validation.md 的移动侧探修订记录为准。

@@ -74,7 +74,7 @@
 - Android 环境、手机型号/触控、系统打断与舒适度仍属于 006 U5 / 008 S6，不自动安装 SDK 或以 Windows 结果替代。
 - 当前代码、资产和文档尚未提交/推送；最近提交仍为 `5d0e3cb`，不能把它称为换边实现版本。
 
-## 2026-09-08 直视通道修订验证（当前）
+## 2026-09-08 直视通道修订验证（前次）
 
 依据设计者最新确认及 [DirectSwitchRevision.md](DirectSwitchRevision.md)：取消预转头/回看，立即横移 0.80s，全程固定通道朝向，不自动跟踪敌人。未改 Blender 几何、FBX 或路径。
 
@@ -85,3 +85,17 @@
 - Windows 开发包增量构建成功，约 5.8s；同一临时输出 `C:/Users/castl/AppData/Local/Temp/EFTM-008-Windows-20260908-164347/EFTM.exe` 已更新为本修订。
 - 新证据位于忽略目录 `codex-chat-images/`：`008-direct-editmode.xml`、`008-direct-playmode.xml`、`008-direct-build.json`；初版 PlayMode 留存为 `008-preturn-playmode.xml`。旧截图/初版证据不作为当前节奏证明。
 - 待设计者体验当前横移节奏、真实按钮输入与舒适度；手机触控/系统打断和 S6 仍未验收。无新增 H5、无 Git 提交或推送。
+
+## 2026-09-08 移动侧探修订验证（当前）
+
+- 授权：设计者要求先完整提交推送工作区，再按推荐方案实施。全部 61 个工作区变更及此前积累的提交已推送到 origin/master；实施前本地 HEAD 与远端均为 `49ce351281ecec3f17ba551222a4d6b92d71c51f`，工作区干净。
+- 基线：`MovingLeanProposal.md` 获批，`DESIGN-CORE-COMBAT` 与 `TECH-COMBAT-FOUNDATION-V1` 同步。侧探 0.08m、压低 0.02m、来源侧侧倾 4°；头部在 0.12s 达峰，侧倾在 0.16s 达峰，0.34s 后逐步回收、0.80s 完全归零。无额外移动阶段或观察停留。
+- 实现：Settings 保存独立 AnimationCurve；CoverTransitionPresenter 从 Foundation 的同一 MoveProgress 求合成相机 Pose；SceneRoot 与 Editor 统一使用该解算器验证 128 段路径、保守近裁面球包络、扫掠及相机前进单调性。相机仍由 PeekCameraPresenter 唯一写入。运行时热路径无新托管分配。
+- 资产：通过 FakeUnityCLI 在线保存现有 CombatFoundationSettings.asset，保留 GUID；没有修改 Blender、FBX、石板、身体路径、正式场景布局或普通 Peek 参数。
+- 编译：在线刷新，generation 21 clean，0 error / 0 warning。
+- EditMode：**37/37 passed**。原换边时序、互斥、阈值、原子预瞄与一次结算回归通过。
+- PlayMode：**28/28 passed**。覆盖 30/60Hz 双向首帧移动、前向稳定、侧倾符号/峰值/归零、头部偏移/压低、无倒退、同进度跨帧率一致、头部先于侧倾达峰、敌人位置独立性、暂停冻结相机、两方向×五个敌人点位的移动观察与近裁面角点、隐藏落位、原射击/UI/情报/热路径分配回归。
+- 渲染采样：通过在线 Editor 实际 Camera.Render 采样两方向 0/0.12/0.16/0.34/0.60/0.80s。0.12s 头部已偏移 8cm、roll 约 3.375°；0.16s 达 4°；0.60s 为 3.2cm/1.6°；0.80s 偏移与侧倾均为零。已查看左右侧探画面，通道可见、侧倾方向相反，无明显裁剪穿模；这些是场景相机渲染，不是硬件操作录像。
+- Windows 开发包：成功，输出 `UnityProject/Builds/MovingLean/EFTM.exe`（Git 忽略的本地构建产物）。可直接用于体验新版动作。
+- 本地验证证据：`codex-chat-images/008-lean-editmode.xml`、`008-lean-playmode.xml`、`008-lean-capture.json`、`008-lean-build.json`、`lean-right-*.png`、`lean-left-*.png`；临时目录不提交。
+- 剩余门禁：设计者常速操作的歪头体感、真实输入与手机舒适度；没有宣称塔科夫逐帧复刻或手机验收完成。

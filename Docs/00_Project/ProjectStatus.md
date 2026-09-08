@@ -9,7 +9,7 @@ last_updated: 2026-09-08
 
 - 当前阶段：战斗模块 V1 的设计、H5 验证和 Unity 技术基线均已批准；Unity U1～U4 已完成当前自动化门禁，进入 U5 设备与体验验收（verifying），不代表完整游戏已经完成。
 - Unity 基线：`2022.3.62f2`。
-- 换边扩展：008 的设计、技术和模型效果已获批准；体验后确认[直视通道换边修订](../30_Iterations/008-cover-side-switch/DirectSwitchRevision.md)：取消预转头/回看，立即横移 0.80s，不自动跟踪敌人。S0～S4 已接入 Unity，进入 verifying；本次修订 EditMode 37/37、PlayMode 25/25，沿用已验证的 Blender 双石板与路径，无几何修改。S5/S6 真实输入、构建与手机体验状态见 [008 验证记录](../30_Iterations/008-cover-side-switch/Validation.md)，不等于全部体验验收；无新 H5 门禁。
+- 换边扩展：008 已接入 Unity；设计者最新批准 [移动侧探修订](../30_Iterations/008-cover-side-switch/MovingLeanProposal.md)，0.80s 横移中加入 0.08m 侧探、0.02m 压低和 4° 侧倾，观察前向沿通道，落位归零。EditMode 37/37、PlayMode 28/28、Windows 开发包通过，进入 verifying。实施前工作区完整提交推送为 `49ce351`；本次结果详见 [008 验证记录](../30_Iterations/008-cover-side-switch/Validation.md)。真实输入与手机舒适度仍待验收，无新 H5 门禁。
 - 场景美术：工作项 007 已按设计者确认的效果图完成 Blender 仓库场景与 Unity 环境替换；原有摄像机和输入保留。目标 Unity 版本 EditMode 19/19、PlayMode 7/7，以及尺度、主要枪线遮挡和框架检查通过；手机视觉、体感与性能待验收，详见 `Docs/30_Iterations/007-blender-combat-scene/Validation.md`。
 - 仓库布局：`Docs/`、按需启用的 `H5Prototype/` 与正式 `UnityProject/` 三个平级工作区；H5 不属于通用开发门禁。
 - 已建立：运行时、编辑器、EditMode 测试程序集，启动与服务生命周期骨架，文档治理框架。

@@ -37,6 +37,30 @@ namespace EFTM.Combat.Presentation
         [SerializeField, Min(0.001f)] private float climbReturnSeconds = 0.250f;
         [SerializeField, Min(0.001f)] private float stableReturnSeconds = 0.145f;
 
+        [Header("Moving Lean")]
+        [SerializeField, Range(0f, .12f)] private float coverLeanDistance = .08f;
+        [SerializeField, Range(0f, .04f)] private float coverLeanDrop = .02f;
+        [SerializeField, Range(0f, 7f)] private float coverLeanRollDegrees = 4f;
+        [SerializeField] private AnimationCurve coverHeadCurve = new AnimationCurve(
+            new Keyframe(0f, 0f), new Keyframe(.15f, 1f), new Keyframe(.425f, 1f),
+            new Keyframe(.75f, .4f), new Keyframe(1f, 0f));
+        [SerializeField] private AnimationCurve coverRollCurve = new AnimationCurve(
+            new Keyframe(0f, 0f), new Keyframe(.20f, 1f), new Keyframe(.425f, 1f),
+            new Keyframe(.75f, .4f), new Keyframe(1f, 0f));
+
+        public Vector2 CoverHeadOffset(float progress)
+        {
+            var weight = MotionWeight(coverHeadCurve, progress);
+            return new Vector2(Mathf.Clamp(coverLeanDistance, 0f, .12f) * weight,
+                Mathf.Clamp(coverLeanDrop, 0f, .04f) * weight);
+        }
+
+        public float CoverRollDegrees(float progress)
+            => Mathf.Clamp(coverLeanRollDegrees, 0f, 7f) * MotionWeight(coverRollCurve, progress);
+
+        private static float MotionWeight(AnimationCurve curve, float progress)
+            => progress <= 0f || progress >= 1f || curve == null ? 0f : Mathf.Clamp01(curve.Evaluate(progress));
+
         [Header("Runtime")]
         [SerializeField, Min(0.001f)] private float coverMoveSeconds = 0.80f;
         [SerializeField, Min(0.001f)] private float coverLandingSeconds = 0.20f;

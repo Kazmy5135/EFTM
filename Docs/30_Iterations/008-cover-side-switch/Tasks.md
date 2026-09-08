@@ -45,7 +45,12 @@ S1 与 S2 在合同固定后可分开推进，这仅表示依赖关系，不授�
 
 ## 执行边界
 
-- 本轮已推进至 S2～S4，并执行 S5 自动化/资源检查；最新[直视通道修订](DirectSwitchRevision.md)为 37/37 EditMode、25/25 PlayMode，详见 [验证记录](Validation.md)。真实 Game 硬件输入、Domain Reload 关闭组合及手机体验仍需单列，不能用合成 PointerEvent 或旧 006 结果代替。
+- 本轮已推进至 S2～S4，并执行 S5 自动化/资源检查；最新[移动侧探修订](MovingLeanProposal.md)为 37/37 EditMode、28/28 PlayMode，详见 [验证记录](Validation.md)。真实 Game 硬件输入、Domain Reload 关闭组合及手机体验仍需单列，不能用合成 PointerEvent 或旧 006 结果代替。
 - 不以 Unity 拼装石板缩短 S1；源模型修改始终在 Blender。
 - Unity 读写与验证优先 FakeUnityCLI，操作当前编辑器前检查 Play、编译和未保存状态；不默认接管桌面。
 - 每个切片记录变更清单、基线、测试、失败项；技术审批不等于手机验收，也不自动授权 Git 提交/推送。
+
+## 移动侧探修订交付
+
+- 已完成：先提交推送备份 `49ce351`、同步批准基线、实现独立头部/侧倾曲线、序列化参数、合成视点包络与单调性验证、双向五点位和暂停/瞄准/射击回归、Windows 开发包。
+- 未完成：设计者真实输入体感与手机验收；不以数值与渲染采样代替。
