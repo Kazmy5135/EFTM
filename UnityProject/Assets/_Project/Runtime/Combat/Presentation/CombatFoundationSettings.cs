@@ -38,6 +38,8 @@ namespace EFTM.Combat.Presentation
         [SerializeField, Min(0.001f)] private float stableReturnSeconds = 0.145f;
 
         [Header("Runtime")]
+        [SerializeField, Min(0.001f)] private float coverMoveSeconds = 0.80f;
+        [SerializeField, Min(0.001f)] private float coverLandingSeconds = 0.20f;
         [SerializeField] private int randomSeed = 20260904;
 
         public float YawDegreesPerReferenceWidth => yawDegreesPerReferenceWidth;
@@ -65,7 +67,7 @@ namespace EFTM.Combat.Presentation
                 maxVerticalRecoilDegrees,
                 maxHorizontalRecoilDegrees,
                 climbReturnSeconds,
-                stableReturnSeconds);
+                stableReturnSeconds, coverMoveSeconds, coverLandingSeconds);
         }
     }
 }

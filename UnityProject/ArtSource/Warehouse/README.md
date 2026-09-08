@@ -2,6 +2,16 @@
 
 本目录承接已确认的工业仓库俯视效果图。工作项：`Docs/30_Iterations/007-blender-combat-scene/`。
 
+## 008 双侧换边源与安装
+
+2026-09-08 直视通道换边修订不改变几何，因此沿用本次 Blender 导出。清单中的 `lookYawDegrees`、`motion.turnSeconds/lookBackSeconds` 仅保留初版历史元数据，Unity 已不读取；当前运行时节奏以 `CombatFoundationSettings` 的直接横移 0.80s 为准。
+
+双石板候选模型与导出见 [CoverSwitchCandidate](CoverSwitchCandidate/README.md)。共享几何合同在 `cover_switch_layout.py`；`upgrade_cover_switch.py` 从已保存旧源进行定向升级，不重生成贴图，`validate_cover_switch.py` 检查 Blender 几何，`verify_cover_switch_export.py` 检查 FBX 回读轴向/尺度。
+
+设计者已于 2026-09-08 确认双石板效果；正式 Unity FBX/清单已安装该版本。**当前双侧模型权威源为 `CoverSwitchCandidate/Warehouse.blend`**；根部旧 `Warehouse.blend` 保留为定向升级输入，未覆盖。完整生成器 `build_warehouse.py` 已改用同一合同，但仍会重生成贴图和覆盖旧源，不能直接运行来覆盖人工修改。
+
+后续修改先在 Blender 的双侧源/共享脚本完成，导出 FBX 与 schema v2 清单到隔离目录并验证，再成组复制到 `Assets/_Project/Art/Warehouse/Models/Warehouse.fbx` 和 `warehouse-manifest.json`（保留 .meta）。退出 Play、处理未保存场景后，通过 FakeUnityCLI 调用 `EFTM.Editor.CoverSwitchSceneBuilder.UpgradeCoverSwitch()`；它更新环境 Prefab、双侧 Rig 与层级，验证后保存，保留已有遭遇引用。不要只替换 FBX 或重跑全部 CombatFoundationAdaptersBuilder.Install。
+
 Blender MCP 配置与后续制作流程见 [BlenderWorkflow.md](../BlenderWorkflow.md)。
 
 - `Warehouse.blend`：Blender 5.2.1 生成的可编辑真实三维场景，贴图打包在文件内。
@@ -18,7 +28,7 @@ Blender MCP 配置与后续制作流程见 [BlenderWorkflow.md](../BlenderWorkfl
 & 'E:/Blender/blender.exe' --background --factory-startup --python 'UnityProject/ArtSource/Warehouse/build_warehouse.py'
 ```
 
-在 Unity 中执行 `Tools > EFTM > Install Blender Warehouse Environment`，更新材质映射、碰撞体、环境 Prefab 与战斗场景。它保留现有摄像机与输入对象；菜单会按 Unity 标准流程处理当前未保存场景。
+双侧版本使用 `Tools > EFTM > Upgrade Cover Switch 008`。旧 `Install Blender Warehouse Environment` 仅处理环境，不完成双侧镜头/玩家绑定；不要把它当成 008 完整迁移入口。
 
 ## 验证约束
 

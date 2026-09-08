@@ -185,7 +185,8 @@ namespace EFTM.Tests.EditMode
             Assert.That(model.Snapshot.CurrentEnemyPosition, Is.EqualTo(4));
             Assert.That(model.Snapshot.Intel.PositionIndex, Is.EqualTo(2));
 
-            model.Execute(new CombatCommand(CombatCommandType.ToggleTrueAim));
+            model.Execute(new CombatCommand(CombatCommandType.ToggleTrueAim,
+                preAim: new PreAimSolution(CoverSide.Right, model.Snapshot.Intel.Revision, -3f, 1.5f)));
 
             Assert.That(model.Snapshot.Intel.HasPendingSnap, Is.False);
             Assert.That(model.Snapshot.AimYawDegrees, Is.EqualTo(-3f).Within(0.0001f));

@@ -8,7 +8,7 @@ namespace EFTM.Combat.Foundation
     /// Unity adapters submit commands and observations, tick time, then consume
     /// snapshots and queued events.
     /// </summary>
-    public sealed class CombatFoundationModel
+    public sealed partial class CombatFoundationModel
     {
         private readonly CombatFoundationConfig config;
         private readonly IRandomSource randomSource;
@@ -70,14 +70,16 @@ namespace EFTM.Combat.Foundation
                 ghostVisible,
                 lastSeenPosition,
                 lastSeenAimYaw,
-                lastSeenAimPitch, lastSeenWorldPose));
+                lastSeenAimPitch, lastSeenWorldPose, intelRevision), SwitchSnapshot);
 
         public void Execute(CombatCommand command)
         {
+            if (SwitchSnapshot.InputLocked && command.Type != CombatCommandType.FireReleased &&
+                command.Type != CombatCommandType.FakePeekReleased) return;
             switch (command.Type)
             {
                 case CombatCommandType.ToggleTrueAim:
-                    ToggleTrueAim();
+                    ToggleTrueAim(command.PreAim);
                     break;
                 case CombatCommandType.FakePeekPressed:
                     PressFakePeek();
@@ -94,6 +96,9 @@ namespace EFTM.Combat.Foundation
                 case CombatCommandType.AimDelta:
                     ApplyAimDelta(command.ValueA, command.ValueB);
                     break;
+                case CombatCommandType.SwitchCoverRequested:
+                    BeginCoverSwitch();
+                    break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(command));
             }
@@ -101,11 +106,18 @@ namespace EFTM.Combat.Foundation
 
         public bool ObserveEnemy(float visibilityRatio, float aimYawDegrees, float aimPitchDegrees,
             IntelWorldPose worldPose = default)
+            => ObserveEnemy(ObservationSource.FakePeek, actionId, currentEnemyPosition,
+                visibilityRatio, aimYawDegrees, aimPitchDegrees, worldPose);
+
+        public bool ObserveEnemy(ObservationSource source, int observedActionId, int enemyPosition,
+            float visibilityRatio, float aimYawDegrees, float aimPitchDegrees, IntelWorldPose worldPose)
         {
-            if (mode != PeekMode.Fake || phase == PeekPhase.Hidden || phase == PeekPhase.Returning)
-            {
-                return false;
-            }
+            if (suspended || observedActionId != actionId || enemyPosition != currentEnemyPosition) return false;
+            if (source == ObservationSource.FakePeek && (SwitchSnapshot.IsSwitching ||
+                mode != PeekMode.Fake || phase == PeekPhase.Hidden || phase == PeekPhase.Returning)) return false;
+            if (source == ObservationSource.CoverSwitch && !SwitchSnapshot.CanObserve) return false;
+            if (source != ObservationSource.FakePeek && source != ObservationSource.CoverSwitch) return false;
+            if (!Finite(visibilityRatio) || !Finite(aimYawDegrees) || !Finite(aimPitchDegrees)) return false;
 
             var visibility = Clamp(visibilityRatio, 0f, 1f);
             if (visibility < config.VisibilityThreshold)
@@ -117,6 +129,7 @@ namespace EFTM.Combat.Foundation
             hasIntel = true;
             hasPendingSnap = true;
             observedThisPeek = true;
+            intelRevision++;
             lastSeenPosition = currentEnemyPosition;
             lastSeenWorldPose = worldPose;
             lastSeenAimYaw = Clamp(aimYawDegrees, -config.AimYawLimitDegrees, config.AimYawLimitDegrees);
@@ -136,6 +149,17 @@ namespace EFTM.Combat.Foundation
         public void Tick(float deltaSeconds)
         {
             var delta = Clamp(deltaSeconds, 0f, config.MaxTickSeconds);
+            if (suspended)
+            {
+                if (!SwitchSnapshot.IsSwitching && phase == PeekPhase.Returning) AdvancePeek(delta);
+                return;
+            }
+            if (SwitchSnapshot.IsSwitching)
+            {
+                AdvanceCoverSwitch(delta);
+                AdvanceRecoilReturn(delta);
+                return;
+            }
             var becameFullyExposed = AdvancePeek(delta);
             AdvanceRecoilReturn(delta);
             AdvanceShooting(delta, becameFullyExposed);
@@ -184,15 +208,19 @@ namespace EFTM.Combat.Foundation
                 : RecoilPhase.Stable;
         }
 
-        private void ToggleTrueAim()
+        private void ToggleTrueAim(PreAimSolution solution)
         {
             if (mode == PeekMode.None && phase == PeekPhase.Hidden)
             {
+                // A stale/absent solution must never consume pending intel or start half an action.
+                if (hasPendingSnap && hasIntel && (!solution.IsValid || solution.Side != currentSide ||
+                    solution.IntelRevision != intelRevision || !Finite(solution.Yaw) || !Finite(solution.Pitch) ||
+                    Math.Abs(solution.Yaw) > config.AimYawLimitDegrees || Math.Abs(solution.Pitch) > config.AimPitchLimitDegrees)) return;
                 StartPeek(PeekMode.TrueAim);
                 if (hasPendingSnap && hasIntel)
                 {
-                    aimYaw = lastSeenAimYaw;
-                    aimPitch = lastSeenAimPitch;
+                    aimYaw = solution.Yaw;
+                    aimPitch = solution.Pitch;
                     hasPendingSnap = false;
                     pendingEvents.Add(new CombatEvent(
                         CombatEventType.PreAimConsumed,
@@ -266,6 +294,7 @@ namespace EFTM.Combat.Foundation
 
         private void StartPeek(PeekMode requestedMode)
         {
+            actionId++;
             if (ghostVisible)
             {
                 ghostVisible = false;

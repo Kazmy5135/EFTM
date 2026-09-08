@@ -163,7 +163,7 @@ namespace EFTM.Editor
             EditorSceneManager.SaveScene(scene); AssetDatabase.SaveAssets();
         }
 
-        private static void InstallFont(CombatFoundationSceneRoot root)
+        public static void InstallFont(CombatFoundationSceneRoot root)
         {
             const string path = MaterialFolder + "/CombatUIFont.asset";
             var font = AssetDatabase.LoadAssetAtPath<FontAsset>(path);
@@ -182,6 +182,29 @@ namespace EFTM.Editor
                 AssetDatabase.AddObjectToAsset(font.material,font);
                 foreach (var atlas in font.atlasTextures) AssetDatabase.AddObjectToAsset(atlas,font);
             }
+            const string switchGlyphs = "换到左右侧先回掩体中转向点位看通道已暂停面";
+            // Static assets may have serialized characters but no lookup dictionary after reload.
+            // TryAddCharacters can also return false when there is nothing new to add.
+            font.ReadFontAssetDefinition();
+            if (!font.HasCharacters(switchGlyphs))
+            {
+                try
+                {
+                    font.atlasPopulationMode = AtlasPopulationMode.Dynamic;
+                    font.TryAddCharacters(switchGlyphs, out var missing);
+                    font.ReadFontAssetDefinition();
+                    if (!font.HasCharacters(switchGlyphs))
+                        throw new InvalidOperationException("Cover-switch UI glyphs missing: " + missing);
+                    foreach (var atlas in font.atlasTextures)
+                    {
+                        if (!AssetDatabase.Contains(atlas)) AssetDatabase.AddObjectToAsset(atlas, font);
+                        EditorUtility.SetDirty(atlas);
+                    }
+                }
+                finally { font.atlasPopulationMode = AtlasPopulationMode.Static; EditorUtility.SetDirty(font); }
+            }
+            font.atlasPopulationMode = AtlasPopulationMode.Static;
+            EditorUtility.SetDirty(font);
             root.GetComponent<CombatInputView>().ConfigureFont(font);
             var fontData = new SerializedObject(font);
             fontData.FindProperty("m_SourceFontFileGUID").stringValue =

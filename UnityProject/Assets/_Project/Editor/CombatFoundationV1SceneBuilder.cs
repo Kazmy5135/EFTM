@@ -54,7 +54,12 @@ namespace EFTM.Editor
             Build();
         }
 
-        private static void Build()
+        public static void BuildForValidation()
+        {
+            Build(false);
+        }
+
+        private static void Build(bool saveOutput = true)
         {
             EnsureFolder(SettingsFolder);
             var settings = AssetDatabase.LoadAssetAtPath<CombatFoundationSettings>(SettingsPath);
@@ -92,8 +97,10 @@ namespace EFTM.Editor
             var sceneRoot = rootObject.AddComponent<CombatFoundationSceneRoot>();
             sceneRoot.Configure(settings, inputView, cameraPresenter);
             CombatFoundationAdaptersBuilder.Install(sceneRoot);
+            CoverSwitchSceneBuilder.Bind(sceneRoot);
+            CoverSwitchSceneBuilder.ValidateAndCapture(scene);
 
-            EditorSceneManager.SaveScene(scene, ScenePath);
+            if (saveOutput) EditorSceneManager.SaveScene(scene, ScenePath);
             EditorSceneManager.CloseScene(scene, true);
 
             if (creationMode == NewSceneMode.Additive &&
@@ -103,7 +110,7 @@ namespace EFTM.Editor
                 SceneManager.SetActiveScene(previousActiveScene);
             }
 
-            EnsureBuildSettings();
+            if (saveOutput) EnsureBuildSettings();
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Debug.Log("[EFTM] CombatFoundationV1 scene and settings generated.");

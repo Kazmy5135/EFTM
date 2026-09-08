@@ -101,7 +101,9 @@ namespace EFTM.Tests.PlayMode
             Assert.That(root.Targeting.Ghost.gameObject.activeSelf,Is.True);
             Assert.That(root.Targeting.Ghost.position,Is.EqualTo(old));
             Assert.That(root.Targeting.Ghost.GetComponentsInChildren<Collider>().Length,Is.Zero);
-            model.Execute(new CombatCommand(CombatCommandType.ToggleTrueAim));
+            var solution = root.CameraPresenter.AimAtWorldPoint(anchor, model.Snapshot.CoverSwitch.CurrentSide);
+            model.Execute(new CombatCommand(CombatCommandType.ToggleTrueAim, preAim:
+                new PreAimSolution(model.Snapshot.CoverSwitch.CurrentSide, model.Snapshot.Intel.Revision, solution.x, solution.y)));
             root.Targeting.Apply(model.Snapshot);
             Assert.That(root.Targeting.Ghost.gameObject.activeSelf,Is.False);
             Assert.That(model.Snapshot.Intel.HasPendingSnap,Is.False);

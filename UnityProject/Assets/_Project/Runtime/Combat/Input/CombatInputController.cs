@@ -48,6 +48,7 @@ namespace EFTM.Combat.Input
         public bool TryToggleTrueAim(int pointerId)
         {
             var snapshot = getSnapshot();
+            if (snapshot.CoverSwitch.InputLocked) return false;
             var canStart = snapshot.Mode == PeekMode.None && snapshot.Phase == PeekPhase.Hidden;
             var canReturn = snapshot.Mode == PeekMode.TrueAim && snapshot.Phase != PeekPhase.Returning;
             if (!canStart && !canReturn)
@@ -61,6 +62,7 @@ namespace EFTM.Combat.Input
 
         public bool TryBeginFakePeek(int pointerId)
         {
+            if (getSnapshot().CoverSwitch.InputLocked) return false;
             if (fakePointerId != NoPointer)
             {
                 return false;
@@ -93,6 +95,7 @@ namespace EFTM.Combat.Input
 
         public bool TryBeginFire(int pointerId)
         {
+            if (getSnapshot().CoverSwitch.InputLocked) return false;
             if (firePointerId != NoPointer)
             {
                 return false;
@@ -125,6 +128,7 @@ namespace EFTM.Combat.Input
 
         public bool TryBeginAim(int pointerId)
         {
+            if (getSnapshot().CoverSwitch.InputLocked) return false;
             if (aimPointerId != NoPointer)
             {
                 return false;
@@ -160,6 +164,7 @@ namespace EFTM.Combat.Input
             float viewportWidth,
             float viewportHeight)
         {
+            if (getSnapshot().CoverSwitch.InputLocked) return false;
             if (pointerId != aimPointerId && pointerId != firePointerId)
             {
                 return false;
@@ -183,6 +188,13 @@ namespace EFTM.Combat.Input
             handled |= TryEndFire(pointerId);
             handled |= TryEndAim(pointerId);
             return handled;
+        }
+
+        public bool TrySwitchCover(int pointerId)
+        {
+            if (!getSnapshot().CanSwitchCover) return false;
+            dispatch(new CombatCommand(CombatCommandType.SwitchCoverRequested, pointerId));
+            return true;
         }
 
         public void ReleaseAll()

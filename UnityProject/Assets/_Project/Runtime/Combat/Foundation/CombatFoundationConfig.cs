@@ -25,7 +25,8 @@ namespace EFTM.Combat.Foundation
             float maximumVerticalRecoilDegrees = 5.16f,
             float maximumHorizontalRecoilDegrees = 2.58f,
             float climbReturnSeconds = 0.250f,
-            float stableReturnSeconds = 0.145f)
+            float stableReturnSeconds = 0.145f,
+            float coverMoveSeconds = 0.80f, float coverLandingSeconds = 0.20f)
         {
             RequirePositive(peekOutDurationSeconds, nameof(peekOutDurationSeconds));
             RequirePositive(peekReturnDurationSeconds, nameof(peekReturnDurationSeconds));
@@ -56,6 +57,11 @@ namespace EFTM.Combat.Foundation
             RequirePositive(maximumHorizontalRecoilDegrees, nameof(maximumHorizontalRecoilDegrees));
             RequirePositive(climbReturnSeconds, nameof(climbReturnSeconds));
             RequirePositive(stableReturnSeconds, nameof(stableReturnSeconds));
+            RequirePositive(coverMoveSeconds, nameof(coverMoveSeconds));
+            RequirePositive(coverLandingSeconds, nameof(coverLandingSeconds));
+            if (coverLandingSeconds >= coverMoveSeconds)
+                throw new ArgumentOutOfRangeException(nameof(coverLandingSeconds), "Landing is part of movement.");
+            CoverMoveSeconds = coverMoveSeconds; CoverLandingSeconds = coverLandingSeconds;
 
             PeekOutDurationSeconds = peekOutDurationSeconds;
             PeekReturnDurationSeconds = peekReturnDurationSeconds;
@@ -109,6 +115,8 @@ namespace EFTM.Combat.Foundation
         public float ClimbReturnSeconds { get; }
 
         public float StableReturnSeconds { get; }
+        public float CoverMoveSeconds { get; }
+        public float CoverLandingSeconds { get; }
 
         private static void RequireProbability(float value, string parameterName)
         {

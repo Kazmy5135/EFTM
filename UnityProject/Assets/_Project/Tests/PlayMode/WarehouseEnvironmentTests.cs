@@ -36,7 +36,7 @@ namespace EFTM.Tests.PlayMode
             var floor = renderers.Single(r => r.name == "Floor").bounds;
             Assert.That(floor.size.x, Is.EqualTo(4f).Within(.03f));
             Assert.That(floor.size.z, Is.EqualTo(24f).Within(.03f));
-            foreach (var name in new[] { "NearCover", "DoorFrame", "FarWall", "LeftWall", "RightWall" })
+            foreach (var name in new[] { "NearCoverRight", "NearCoverLeft", "FarWall", "LeftWall", "RightWall" })
             {
                 var visual = renderers.Single(r => r.name == name).bounds;
                 var collision = environment.GetComponentsInChildren<BoxCollider>().Single(c => c.name == name).bounds;
@@ -48,14 +48,15 @@ namespace EFTM.Tests.PlayMode
         [Test]
         public void OriginalPeekPathOpensRealSightlineWithoutReocclusion()
         {
-            var poses = scene.GetRootGameObjects().Single(o => o.name == "CameraPoses").transform;
-            var hidden = poses.Find("HiddenPose").position;
-            var exposed = poses.Find("ExposedPose").position;
-            Assert.That(Vector3.Distance(hidden,new Vector3(.4f,1.55f,-2.1f)), Is.LessThan(.001f));
-            Assert.That(Vector3.Distance(exposed,new Vector3(.02f,1.495f,-1.1f)), Is.LessThan(.001f));
+            var poses = scene.GetRootGameObjects().Single(o => o.name == "CoverSideRig")
+                .GetComponent<EFTM.Combat.Camera.CoverSideRig>().Get(EFTM.Combat.Foundation.CoverSide.Right);
+            var hidden = poses.hiddenPose.position;
+            var exposed = poses.exposedPose.position;
+            Assert.That(Vector3.Distance(hidden,new Vector3(.73f,1.55f,-.85f)), Is.LessThan(.001f));
+            Assert.That(Vector3.Distance(exposed,new Vector3(.22f,1.495f,-.65f)), Is.LessThan(.001f));
             var target = new Vector3(0f,1.5f,18f);
             Assert.That(Physics.Linecast(hidden,target,out var hit), Is.True);
-            Assert.That(hit.collider.name, Is.EqualTo("NearCover").Or.EqualTo("DoorFrame"));
+            Assert.That(hit.collider.name, Is.EqualTo("NearCoverRight"));
             var hasOpened = false;
             for (var i = 0; i <= 20; i++)
             {

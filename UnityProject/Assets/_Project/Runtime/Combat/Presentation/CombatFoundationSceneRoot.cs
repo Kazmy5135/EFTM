@@ -23,6 +23,9 @@ namespace EFTM.Combat.Presentation
         private readonly List<CombatEvent> eventBuffer = new List<CombatEvent>(16);
         private CombatFoundationModel model;
         private bool initialized;
+        private bool applicationPaused, applicationFocused = true, faulted;
+        private float nearPlaneRadius;
+        private CombatFoundationConfig activeConfig;
 
         public event Action<CombatEvent> EventRaised;
 
@@ -74,13 +77,22 @@ namespace EFTM.Combat.Presentation
 
         public void Step(float deltaSeconds)
         {
-            if (!initialized) return;
+            if (!initialized || faulted) return;
             shots.Tick(deltaSeconds);
             model.Tick(deltaSeconds);
             targeting.Apply(model.Snapshot);
+            if (!ApplyMovement()) return;
             cameraPresenter.Apply(model.Snapshot);
             FlushEvents();
             targeting.Observe(model, viewCamera, cameraPresenter);
+            if (model.Snapshot.CoverSwitch.AwaitingArrivalConfirmation && !model.Snapshot.CoverSwitch.Suspended)
+            {
+                if (!cameraPresenter.Transition.ArrivalMatches(model.Snapshot.CoverSwitch, viewCamera.transform) ||
+                    targeting.LastVisibility > 0f)
+                { StopEncounter("Cover arrival is not hidden or does not match the approved endpoint."); return; }
+                model.ConfirmCoverArrival(model.Snapshot.CoverSwitch.ActionId);
+                targeting.Apply(model.Snapshot);
+            }
             FlushEvents();
             inputView.ApplySnapshot(model.Snapshot);
             inputView.ApplyHitFeedback(shots.HitFeedbackRemaining > 0f, shots.LastHitTarget);
@@ -88,18 +100,23 @@ namespace EFTM.Combat.Presentation
 
         private void OnApplicationPause(bool paused)
         {
-            if (paused)
-            {
-                EnterSafeReturn();
-            }
+            applicationPaused = paused;
+            ApplySuspension();
         }
 
         private void OnApplicationFocus(bool focused)
         {
-            if (!focused)
-            {
-                EnterSafeReturn();
-            }
+            applicationFocused = focused;
+            ApplySuspension();
+        }
+
+        private void ApplySuspension()
+        {
+            if (!initialized || model == null) return;
+            var suspended = applicationPaused || !applicationFocused;
+            if (suspended) EnterSafeReturn();
+            model.SetSuspended(suspended || faulted);
+            inputView.ApplySnapshot(model.Snapshot);
         }
 
         private void OnDisable()
@@ -140,6 +157,30 @@ namespace EFTM.Combat.Presentation
             else shots.Validate(failures);
             viewCamera = cameraPresenter == null ? null : cameraPresenter.GetComponent<UnityEngine.Camera>();
             if (viewCamera == null) failures.Add("Combat camera missing.");
+            if (cameraPresenter != null)
+            {
+                if (cameraPresenter.Transition == null) failures.Add("Dual-cover transition binding missing; migrate the scene before playing.");
+                else cameraPresenter.Transition.Validate(failures);
+            }
+
+            if (failures.Count == 0 && cameraPresenter.Transition != null)
+            {
+                var tangent = Mathf.Tan(viewCamera.fieldOfView * .5f * Mathf.Deg2Rad);
+                nearPlaneRadius = viewCamera.nearClipPlane * Mathf.Sqrt(1f + tangent*tangent * (1f + viewCamera.aspect*viewCamera.aspect));
+                Physics.SyncTransforms();
+                targeting.ValidateCoverGeometry(viewCamera, cameraPresenter.Transition.Rig, failures);
+                for (var sideIndex = 0; sideIndex < 2; sideIndex++)
+                {
+                    var side = cameraPresenter.Transition.Rig.Get((CoverSide)sideIndex);
+                    for (var i = 0; i <= 64; i++)
+                    {
+                        var position = side.Position(i / 64f);
+                        if (!cameraPresenter.Transition.IsClear(position,
+                            position + side.hiddenPose.position - side.playerAnchor.position, nearPlaneRadius))
+                        { failures.Add("Cover path envelope blocked: " + side.side); break; }
+                    }
+                }
+            }
 
             if (failures.Count > 0)
             {
@@ -152,6 +193,7 @@ namespace EFTM.Combat.Presentation
             try
             {
                 var config = settings.CreateConfig();
+                activeConfig = config;
                 if (config.EnemyPositionCount != targeting.PositionCount)
                     throw new InvalidOperationException("Configured enemy position count does not match the five scene slots.");
                 model = new CombatFoundationModel(
@@ -175,6 +217,9 @@ namespace EFTM.Combat.Presentation
             inputView.Bind(ExecuteCommand, () => model.Snapshot, settings);
             targeting.ResetPresentation(model.Snapshot);
             shots.Prewarm();
+            faulted = false;
+            cameraPresenter.Transition?.ResetMotion();
+            if (!ApplyMovement()) return;
             cameraPresenter.Apply(model.Snapshot);
             initialized = true;
 
@@ -183,11 +228,24 @@ namespace EFTM.Combat.Presentation
 
         public void ExecuteCommand(CombatCommand command)
         {
+            if (faulted || model == null) return;
+            var before = model.Snapshot;
+            if (command.Type == CombatCommandType.ToggleTrueAim && before.CanSwitchCover && before.Intel.HasPendingSnap)
+            {
+                var old = before.Intel.WorldPose;
+                var aim = cameraPresenter.AimAtWorldPoint(new Vector3(old.AnchorX, old.AnchorY, old.AnchorZ), before.CoverSwitch.CurrentSide);
+                if (float.IsNaN(aim.x) || float.IsNaN(aim.y) || Mathf.Abs(aim.x) > activeConfig.AimYawLimitDegrees ||
+                    Mathf.Abs(aim.y) > activeConfig.AimPitchLimitDegrees)
+                { StopEncounter("Recorded world anchor cannot be pre-aimed from the current cover side."); return; }
+                command = new CombatCommand(command.Type, command.PointerId, command.ValueA, command.ValueB,
+                    new PreAimSolution(before.CoverSwitch.CurrentSide, before.Intel.Revision, aim.x, aim.y));
+            }
             model?.Execute(command);
             if (model != null)
             {
                 FlushEvents();
                 targeting.Apply(model.Snapshot);
+                if (!ApplyMovement()) return;
                 cameraPresenter.Apply(model.Snapshot);
                 inputView.ApplySnapshot(model.Snapshot);
             }
@@ -199,7 +257,7 @@ namespace EFTM.Combat.Presentation
             model.CopyPendingEventsTo(eventBuffer);
             for (var index = 0; index < eventBuffer.Count; index++)
             {
-                if (eventBuffer[index].Type == CombatEventType.ShotRequested)
+                if (eventBuffer[index].Type == CombatEventType.ShotRequested && !model.Snapshot.CoverSwitch.InputLocked)
                     shots.Fire(eventBuffer[index], cameraPresenter, targeting.Actor != null);
                 EventRaised?.Invoke(eventBuffer[index]);
             }
@@ -231,6 +289,24 @@ namespace EFTM.Combat.Presentation
             }
 
             FlushEvents();
+        }
+
+        private bool ApplyMovement()
+        {
+            if (cameraPresenter.Transition == null) return true;
+            if (cameraPresenter.Transition.TryApply(model.Snapshot, nearPlaneRadius)) return true;
+            StopEncounter(cameraPresenter.Transition.Failure);
+            return false;
+        }
+
+        private void StopEncounter(string reason)
+        {
+            if (faulted) return;
+            faulted = true;
+            model.SetSuspended(true);
+            inputView.ReleaseAllInput();
+            inputView.ApplySnapshot(model.Snapshot);
+            Debug.LogError("[EFTM] " + reason, this);
         }
     }
 }

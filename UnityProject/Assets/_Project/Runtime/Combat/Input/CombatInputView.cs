@@ -24,6 +24,8 @@ namespace EFTM.Combat.Input
         private Button trueAimButton;
         private Button fakePeekButton;
         private Button fireButton;
+        private Button switchCoverButton;
+        private int switchPointerId = NoPointer;
         private Label statusLabel;
         private Label intelLabel;
         private Label reticle;
@@ -100,6 +102,8 @@ namespace EFTM.Combat.Input
             UpdateSafeArea();
             var uiState = (int)snapshot.Mode | ((int)snapshot.Phase << 3) |
                 (snapshot.FireHeld ? 64 : 0) | (snapshot.Intel.HasIntel ? 128 : 0);
+            uiState |= ((int)snapshot.CoverSwitch.CurrentSide << 8) | ((int)snapshot.CoverSwitch.Phase << 9) |
+                (snapshot.CoverSwitch.Suspended ? 4096 : 0);
             if (uiState == lastUiState) return;
             lastUiState = uiState;
 
@@ -112,9 +116,17 @@ namespace EFTM.Combat.Input
 
             trueAimButton.text = isTrueAim && !isReturning ? "返回掩体" : "真架枪";
             trueAimButton.EnableInClassList("is-active", isTrueAim && !isReturning);
-            fakePeekButton.SetEnabled(!isTrueAim);
+            var locked = snapshot.CoverSwitch.InputLocked;
+            trueAimButton.SetEnabled(!locked);
+            fakePeekButton.SetEnabled(!isTrueAim && !locked);
+            fireButton.SetEnabled(!locked);
+            switchCoverButton.SetEnabled(snapshot.CanSwitchCover);
+            switchCoverButton.text = snapshot.CoverSwitch.IsSwitching ? "换边中" :
+                !snapshot.CanSwitchCover ? "先回到掩体" : snapshot.CoverSwitch.CurrentSide == CoverSide.Right ? "换到左侧" : "换到右侧";
 
-            statusLabel.text = BuildStatus(snapshot);
+            statusLabel.text = snapshot.CoverSwitch.Suspended ? "已暂停" : snapshot.CoverSwitch.IsSwitching ?
+                "换边中 · 面向通道" :
+                (snapshot.CoverSwitch.CurrentSide == CoverSide.Right ? "右侧 · " : "左侧 · ") + BuildStatus(snapshot);
             intelLabel.text = snapshot.Intel.HasIntel ? "已预瞄 · 最后观察位置（可能过期）" : "没有敌人信息";
         }
 
@@ -131,6 +143,7 @@ namespace EFTM.Combat.Input
         public void ReleaseAllInput()
         {
             trueAimPointerId = NoPointer;
+            switchPointerId = NoPointer;
             controller?.ReleaseAll();
             for (var pointer = 0; pointer < PointerId.maxPointers; pointer++)
             {
@@ -138,6 +151,7 @@ namespace EFTM.Combat.Input
                 ReleasePointerIfCaptured(fakePeekButton, pointer);
                 ReleasePointerIfCaptured(fireButton, pointer);
                 ReleasePointerIfCaptured(aimSurface, pointer);
+                ReleasePointerIfCaptured(switchCoverButton, pointer);
             }
         }
 
@@ -163,6 +177,7 @@ namespace EFTM.Combat.Input
             trueAimButton = null;
             fakePeekButton = null;
             fireButton = null;
+            switchCoverButton = null;
             statusLabel = null;
         }
 
@@ -262,6 +277,13 @@ namespace EFTM.Combat.Input
             fakePeekButton.style.height = 132f;
             safeRoot.Add(fakePeekButton);
 
+            switchCoverButton = CreateActionButton("switch-cover", "换到左侧", new Color(.26f, .38f, .48f, .94f));
+            switchCoverButton.style.right = 54f;
+            switchCoverButton.style.bottom = 240f;
+            switchCoverButton.style.width = 300f;
+            switchCoverButton.style.height = 116f;
+            safeRoot.Add(switchCoverButton);
+
             fireButton = CreateActionButton("fire", "按住开火", new Color(0.72f, 0.20f, 0.14f, 0.96f));
             fireButton.style.left = Length.Percent(50f);
             fireButton.style.marginLeft = -130f;
@@ -307,6 +329,31 @@ namespace EFTM.Combat.Input
 
         private void RegisterInputCallbacks()
         {
+            switchCoverButton.RegisterCallback<PointerDownEvent>(evt =>
+            {
+                if (switchPointerId != NoPointer || getSnapshot == null || !getSnapshot().CanSwitchCover) return;
+                switchPointerId = evt.pointerId;
+                switchCoverButton.CapturePointer(evt.pointerId);
+                evt.StopPropagation();
+            });
+            switchCoverButton.RegisterCallback<PointerUpEvent>(evt =>
+            {
+                if (switchPointerId != evt.pointerId) return;
+                switchPointerId = NoPointer;
+                controller?.TrySwitchCover(evt.pointerId);
+                ReleasePointerIfCaptured(switchCoverButton, evt.pointerId);
+                evt.StopPropagation();
+            });
+            switchCoverButton.RegisterCallback<PointerCancelEvent>(evt =>
+            {
+                if (switchPointerId != evt.pointerId) return;
+                switchPointerId = NoPointer;
+                ReleasePointerIfCaptured(switchCoverButton, evt.pointerId);
+            });
+            switchCoverButton.RegisterCallback<PointerCaptureOutEvent>(evt =>
+            {
+                if (switchPointerId == evt.pointerId) switchPointerId = NoPointer;
+            });
             trueAimButton.RegisterCallback<PointerDownEvent>(OnTrueAimDown);
             trueAimButton.RegisterCallback<PointerUpEvent>(OnTrueAimUp);
             trueAimButton.RegisterCallback<PointerCancelEvent>(OnTrueAimCancel);

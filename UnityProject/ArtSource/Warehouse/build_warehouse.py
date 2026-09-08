@@ -8,11 +8,15 @@ import bpy
 import math
 import json
 import random
+import sys
 from pathlib import Path
 from mathutils import Vector
 import numpy as np
 
 SOURCE = Path(__file__).resolve().parent
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(SOURCE))
+from cover_switch_layout import COVERS, contract
 PROJECT = SOURCE.parents[1]
 ART = PROJECT / 'Assets/_Project/Art/Warehouse'
 TEXTURES = ART / 'Textures'
@@ -53,6 +57,7 @@ scene.collection.children.link(presentation)
 groups = {}
 materials = {}
 manifest = {'units': 'meters', 'colliders': [], 'materials': [], 'previewOnlyAnchors': []}
+manifest.update(contract())
 
 
 def xyz(p):
@@ -210,7 +215,7 @@ def wall(name, pos, size, stripe=True):
             box(name+'_skirting',(inside,.075,z),(.028,.15,sz-.02),dark,.003,name)
         else:
             box(name+'_paint',(x,.64,z-sz/2-.004),(sx-.02,1.26,.005),paint,0,name)
-            if name=='NearCover':
+            if name.startswith('NearCover'):
                 box(name+'_rearPaint',(x,.64,z+sz/2+.004),(sx-.02,1.26,.005),paint,0,name)
 
 
@@ -219,9 +224,9 @@ collider('Floor',(0,-.12,10),(4,.24,24))
 wall('LeftWall',(-2,1.5,10),(.24,3,24))
 wall('RightWall',(2,1.5,10),(.24,3,24))
 wall('FarWall',(0,1.5,22),(4,3,.24))
-# Interior edge and door frame exactly match the accepted U2 scene geometry.
-wall('NearCover',(1.14,1.5,-.02),(1.7,3,.32))
-wall('DoorFrame',(.24,1.5,-.02),(.18,3,.46),False)
+# 008 layout is authored here in Blender, never patched with Unity primitives.
+for cover in COVERS:
+    wall(cover['name'], cover['position'], cover['size'], False)
 box('Ceiling',(0,3.12,10),(4,.24,24),concrete,.008)
 collider('Ceiling',(0,3.12,10),(4,.24,24))
 

@@ -13,5 +13,6 @@ last_updated: 2026-09-08
 | 产品定义与完整 Demo 范围 | `DESIGN-PRODUCT-DEFINITION`（accepted） | 尚未建立 | 尚未进入实现 | 002、004 | not_assessed | 战斗模块 V1 已同步并于 2026-09-03 获设计者批准 |
 | 核心掩体战斗 V1 基础方向 | `DESIGN-CORE-COMBAT`、`DDR-001`（accepted） | `TECH-COMBAT-FOUNDATION-V1`（accepted） | `H5-PEEK-CAMERA-001 V1`（已验证 H5）；Unity U1～U4 `Assets/_Project/Runtime/Combat` 与 `CombatFoundationV1.unity` | 003、004、005、006 | verifying | H5：`Docs/30_Iterations/004-peek-camera/Validation.md`；Unity：`Docs/30_Iterations/006-unity-combat-foundation-implementation/Validation.md`；项目 EditMode 22/22、PlayMode 16/16、Windows 开发包启动，Android/真机待验收 |
 | Blender 仓库场景美术与 Unity 接入 | `DESIGN-CORE-COMBAT`（accepted）、工作项 007 已批准美术提案 | `TECH-COMBAT-FOUNDATION-V1`（accepted） | `UnityProject/ArtSource/Warehouse`、`Assets/_Project/Art/Warehouse`、`CombatFoundationV1.unity` | 007 | verifying | `Docs/30_Iterations/007-blender-combat-scene/Validation.md`；26/26 测试通过，手机视觉与体感待验收 |
+| 双侧掩体换边与移动观察 | `DESIGN-CORE-COMBAT` / `DDR-001`（008 扩展与直视通道修订 accepted，2026-09-08；修订未提交） | `TECH-COMBAT-FOUNDATION-V1`（直接横移 0.80s、固定通道朝向；修订未提交） | S0～S4：双侧场景、换边状态/PlayerRoot/镜头/UI/移动情报/跨侧预瞄接入；S5/S6 体验门禁待验 | 008 | verifying | [最新批准修订](../30_Iterations/008-cover-side-switch/DirectSwitchRevision.md)、[验证记录](../30_Iterations/008-cover-side-switch/Validation.md)；本次 EditMode 37/37、PlayMode 25/25，不代表真实硬件或手机体验通过 |
 
 登记表只维护对应关系，不拥有设计规则、技术契约或测试正文。

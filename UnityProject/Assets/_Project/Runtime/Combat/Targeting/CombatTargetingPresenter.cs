@@ -110,13 +110,52 @@ namespace EFTM.Combat.Targeting
         public void Observe(CombatFoundationModel model, UnityEngine.Camera view, PeekCameraPresenter cameraRig)
         {
             var snapshot = model.Snapshot;
-            if (snapshot.Mode != PeekMode.Fake || snapshot.Phase == PeekPhase.Returning ||
-                snapshot.Phase == PeekPhase.Hidden || actor == null || aimAnchor == null) return;
+            LastVisibility = 0f;
+            var moving = snapshot.CoverSwitch.CanObserve;
+            if ((!moving && (snapshot.CoverSwitch.InputLocked || snapshot.Mode != PeekMode.Fake ||
+                snapshot.Phase == PeekPhase.Returning || snapshot.Phase == PeekPhase.Hidden)) ||
+                actor == null || aimAnchor == null) return;
             LastVisibility = EvaluateVisibility(view);
             var p = actor.position; var q = actor.rotation; var a = aimAnchor.position;
             var aim = cameraRig.AimAtWorldPoint(a);
-            model.ObserveEnemy(LastVisibility, aim.x, aim.y,
+            model.ObserveEnemy(moving ? ObservationSource.CoverSwitch : ObservationSource.FakePeek,
+                snapshot.CoverSwitch.ActionId, snapshot.CurrentEnemyPosition, LastVisibility, aim.x, aim.y,
                 new IntelWorldPose(p.x, p.y, p.z, q.x, q.y, q.z, q.w, a.x, a.y, a.z, Time.unscaledTimeAsDouble));
+        }
+
+        public void ValidateCoverGeometry(UnityEngine.Camera view, CoverSideRig rig, List<string> failures)
+        {
+            var oldCamera = new Pose(view.transform.position, view.transform.rotation);
+            var oldActor = new Pose(actor.position, actor.rotation);
+            var oldIndex = appliedPosition;
+            var exposed = new float[2, positions.Length];
+            try
+            {
+                for (var sideIndex = 0; sideIndex < 2; sideIndex++)
+                {
+                    var side = rig.Get((CoverSide)sideIndex);
+                    for (var slot = 0; slot < positions.Length; slot++)
+                    {
+                        SetPosition(slot);
+                        // Hidden must be actual near-cover occlusion, not simply offscreen.
+                        for (var sample = 0; sample < localSamples.Length; sample++)
+                            if (!Physics.Linecast(side.hiddenPose.position, actor.TransformPoint(localSamples[sample]),
+                                out var hit, occluders, QueryTriggerInteraction.Ignore) ||
+                                hit.collider.name != "NearCover" + side.side)
+                            { failures.Add($"{side.side} hidden slot {slot} is not fully blocked by near cover."); break; }
+                        view.transform.SetPositionAndRotation(side.exposedPose.position, side.exposedPose.rotation);
+                        exposed[sideIndex, slot] = EvaluateVisibility(view);
+                    }
+                }
+                for (var slot = 0; slot < positions.Length; slot++)
+                    if (Mathf.Max(exposed[0, slot], exposed[1, slot]) < .1f)
+                        failures.Add("Enemy slot has no 10% observation opportunity: " + slot);
+            }
+            finally
+            {
+                actor.SetPositionAndRotation(oldActor.position, oldActor.rotation); appliedPosition = oldIndex;
+                view.transform.SetPositionAndRotation(oldCamera.position, oldCamera.rotation);
+            }
         }
     }
 }

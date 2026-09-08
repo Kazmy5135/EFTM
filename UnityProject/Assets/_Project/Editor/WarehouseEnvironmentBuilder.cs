@@ -84,9 +84,10 @@ namespace EFTM.Editor
             RenderSettings.ambientIntensity = 1f;
         }
 
-        private static void BuildPrefab()
+        public static void BuildPrefab()
         {
             AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
+            CoverSwitchSceneBuilder.ReadManifest(); // Reject old/single-cover contracts before modifying assets.
             var manifest = JsonUtility.FromJson<Manifest>(File.ReadAllText(ArtPath + "/warehouse-manifest.json"));
             if (manifest == null || manifest.materials == null || manifest.colliders == null)
                 throw new InvalidDataException("Warehouse manifest is incomplete.");
@@ -147,10 +148,16 @@ namespace EFTM.Editor
                 instance.name = "WarehouseModel";
                 // Source export accounts for handedness; reject a mirrored or rotated replacement.
                 var far = FindRenderer(instance, "FarWall");
-                var near = FindRenderer(instance, "NearCover");
-                Debug.Log($"[EFTM] Imported far center {far.bounds.center}; near center {near.bounds.center}.");
-                if (Mathf.Abs(far.bounds.center.z - 22f) > .05f || Mathf.Abs(near.bounds.center.x - 1.14f) > .05f)
-                    throw new InvalidDataException($"FBX coordinate conversion mismatch: far={far.bounds.center}, near={near.bounds.center}.");
+                if (Mathf.Abs(far.bounds.center.z - 22f) > .02f ||
+                    instance.GetComponentsInChildren<MeshRenderer>().Length != manifest.meshCount)
+                    throw new InvalidDataException("FBX scale/mesh count differs from Blender manifest.");
+                foreach (var record in manifest.colliders.Where(c => c.name.StartsWith("NearCover", StringComparison.Ordinal)))
+                {
+                    var bounds = FindRenderer(instance, record.name).bounds;
+                    if (Vector3.Distance(bounds.center, V3(record.position)) > .02f ||
+                        Vector3.Distance(bounds.size, V3(record.size)) > .02f)
+                        throw new InvalidDataException("FBX handedness/metre scale mismatch: " + record.name);
+                }
                 foreach (var renderer in instance.GetComponentsInChildren<MeshRenderer>())
                 {
                     renderer.gameObject.isStatic = true;
@@ -197,6 +204,9 @@ namespace EFTM.Editor
                 key.shadows = LightShadows.Soft;
                 key.shadowStrength = .65f;
                 key.shadowResolution = LightShadowResolution.Medium;
+                var layer = LayerMask.NameToLayer("CombatOccluder");
+                if (layer < 0) throw new InvalidDataException("CombatOccluder layer missing.");
+                foreach (var child in root.GetComponentsInChildren<Transform>(true)) child.gameObject.layer = layer;
                 PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
                 Debug.Log($"[EFTM] Warehouse prefab: {manifest.meshCount} meshes, {manifest.triangles} triangles, {manifest.colliders.Length} box colliders.");
             }
@@ -227,32 +237,27 @@ namespace EFTM.Editor
         public static void ValidateSceneAndCapture()
         {
             var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+            CoverSwitchSceneBuilder.ValidateAndCapture(scene);
             var environment = scene.GetRootGameObjects().Single(o => o.name == RootName);
             var renderers = environment.GetComponentsInChildren<MeshRenderer>();
-            if (renderers.Length != 21) throw new InvalidDataException("Unexpected warehouse mesh count.");
+            var manifest = JsonUtility.FromJson<Manifest>(File.ReadAllText(ArtPath + "/warehouse-manifest.json"));
+            if (renderers.Length != manifest.meshCount) throw new InvalidDataException("Unexpected warehouse mesh count.");
             var floor = FindRenderer(environment,"Floor").bounds;
             if (Mathf.Abs(floor.size.x - 4f) > .05f || Mathf.Abs(floor.size.z - 24f) > .05f)
                 throw new InvalidDataException("FBX metre scale is invalid: " + floor.size);
             if (environment.GetComponentsInChildren<Collider>().Length < 10)
                 throw new InvalidDataException("Missing environment colliders.");
             var camera = GameObject.Find("CombatCamera").GetComponent<UnityEngine.Camera>();
-            var hidden = GameObject.Find("HiddenPose").transform;
-            var exposed = GameObject.Find("ExposedPose").transform;
-            Physics.SyncTransforms();
-            // Test the gameplay-critical sightline at the original camera positions.
-            var target = new Vector3(0f,1.5f,18f);
-            if (!Physics.Linecast(hidden.position,target,out var hiddenHit) ||
-                (hiddenHit.collider.name != "NearCover" && hiddenHit.collider.name != "DoorFrame"))
-                throw new InvalidDataException("Hidden camera no longer has real near-cover occlusion.");
-            if (Physics.Linecast(exposed.position,target,out var exposedHit))
-                throw new InvalidDataException("Exposed central sightline is blocked by " + exposedHit.collider.name);
+            var rig = UnityEngine.Object.FindObjectOfType<EFTM.Combat.Camera.CoverSideRig>();
             var output = Path.GetFullPath(Path.Combine(Application.dataPath,"../../codex-chat-images"));
             Directory.CreateDirectory(output);
-            Capture(camera, hidden.position, hidden.rotation, Path.Combine(output,"warehouse-unity-hidden.png"));
-            Capture(camera, exposed.position, exposed.rotation, Path.Combine(output,"warehouse-unity-peek.png"));
-            File.WriteAllText(Path.Combine(output,"warehouse-unity-validation.txt"),
-                $"Unity {Application.unityVersion}\nMeshes: {renderers.Length}\nFloor: {floor.size}\nHidden ray: {hiddenHit.collider.name}\nExposed ray: clear\nCamera poses unchanged\n");
-            Debug.Log("[EFTM] Warehouse scale, material mapping, hidden occlusion and exposed sightline validation passed.");
+            foreach (var side in new[] { EFTM.Combat.Foundation.CoverSide.Right, EFTM.Combat.Foundation.CoverSide.Left })
+            {
+                var pose = rig.Get(side);
+                Capture(camera, pose.hiddenPose.position, pose.hiddenPose.rotation, Path.Combine(output,"008-"+side+"-hidden.png"));
+                Capture(camera, pose.exposedPose.position, pose.exposedPose.rotation, Path.Combine(output,"008-"+side+"-peek.png"));
+            }
+            Debug.Log("[EFTM] Dual-cover scale, materials, geometry and portrait capture passed.");
         }
 
         private static void Capture(UnityEngine.Camera camera, Vector3 position, Quaternion rotation, string path)

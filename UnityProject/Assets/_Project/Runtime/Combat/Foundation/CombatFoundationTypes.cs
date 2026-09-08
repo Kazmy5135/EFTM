@@ -30,17 +30,20 @@ namespace EFTM.Combat.Foundation
         FakePeekReleased,
         FirePressed,
         FireReleased,
-        AimDelta
+        AimDelta,
+        SwitchCoverRequested
     }
 
     public readonly struct CombatCommand
     {
-        public CombatCommand(CombatCommandType type, int pointerId = -1, float valueA = 0f, float valueB = 0f)
+        public CombatCommand(CombatCommandType type, int pointerId = -1, float valueA = 0f, float valueB = 0f,
+            PreAimSolution preAim = default)
         {
             Type = type;
             PointerId = pointerId;
             ValueA = valueA;
             ValueB = valueB;
+            PreAim = preAim;
         }
 
         public CombatCommandType Type { get; }
@@ -50,6 +53,7 @@ namespace EFTM.Combat.Foundation
         public float ValueA { get; }
 
         public float ValueB { get; }
+        public PreAimSolution PreAim { get; }
     }
 
     public enum CombatEventType
@@ -63,7 +67,10 @@ namespace EFTM.Combat.Foundation
         PreAimConsumed,
         EnemyRelocated,
         ShotRequested,
-        BurstEnded
+        BurstEnded,
+        CoverSwitchStarted,
+        CoverSwitchPhaseChanged,
+        CoverSwitchArrived
     }
 
     public readonly struct CombatEvent
@@ -113,7 +120,7 @@ namespace EFTM.Combat.Foundation
             int positionIndex,
             float aimYawDegrees,
             float aimPitchDegrees,
-            IntelWorldPose worldPose = default)
+            IntelWorldPose worldPose = default, int revision = 0)
         {
             HasIntel = hasIntel;
             HasPendingSnap = hasPendingSnap;
@@ -122,9 +129,11 @@ namespace EFTM.Combat.Foundation
             AimYawDegrees = aimYawDegrees;
             AimPitchDegrees = aimPitchDegrees;
             WorldPose = worldPose;
+            Revision = revision;
         }
 
         public bool HasIntel { get; }
+        public int Revision { get; }
         public IntelWorldPose WorldPose { get; }
 
         public bool HasPendingSnap { get; }
@@ -153,7 +162,7 @@ namespace EFTM.Combat.Foundation
             float recoilYawDegrees,
             float recoilPitchDegrees,
             int currentEnemyPosition,
-            LastSeenIntel intel)
+            LastSeenIntel intel, CoverSwitchSnapshot coverSwitch = default)
         {
             Mode = mode;
             Phase = phase;
@@ -168,6 +177,7 @@ namespace EFTM.Combat.Foundation
             RecoilPitchDegrees = recoilPitchDegrees;
             CurrentEnemyPosition = currentEnemyPosition;
             Intel = intel;
+            CoverSwitch = coverSwitch;
         }
 
         public PeekMode Mode { get; }
@@ -195,5 +205,7 @@ namespace EFTM.Combat.Foundation
         public int CurrentEnemyPosition { get; }
 
         public LastSeenIntel Intel { get; }
+        public CoverSwitchSnapshot CoverSwitch { get; }
+        public bool CanSwitchCover => !CoverSwitch.InputLocked && Mode == PeekMode.None && Phase == PeekPhase.Hidden;
     }
 }
